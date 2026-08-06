@@ -30,7 +30,7 @@ API_URL = "https://darkfollow.shop/api/v2"
 API_KEY = "Ig1FjwBweH3inDwnjLvv7Dt1ZzVRoKKNMF7QysS9UT0sSINTUKmWYdohsm3U"
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://iwkszjsggdddiaotlzrk.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3a3N6anNnZ2RkZGlhb3RsenJrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDcyMjEyNCwiZXhwIjoyMTAwMjk4MTI0fQ.AbTTagJYFUbntAsUSTZtmdfcUUVFOC24ynWDXdo-ExM")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6lml3a3N6anNnZ2RkZGlhb3RsenJrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDcyMjEyNCwiZXhwIjoyMTAwMjk4MTI0fQ.AbTTagJYFUbntAsUSTZtmdfcUUVFOC24ynWDXdo-ExM")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -1626,7 +1626,7 @@ def query(call):
             if cat_to_del in CATEGORIES:
                 cat_name = CATEGORIES[cat_to_del]
                 
-                keys_to_del = [k for k, v in SERVICES.items() if v.get('category') == cat_to_del]
+                keys_to_del = [k for k, v in SERVICES.items() if v.get('category'] == cat_to_del]
                 for k in keys_to_del:
                     del SERVICES[k]
                 
