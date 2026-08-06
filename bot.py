@@ -1576,6 +1576,7 @@ def query(call):
                         seen_names.add(base_name)
                         markup.add(types.InlineKeyboardButton(f"🗑️ {base_name}", callback_data=f"delgroup_{cat_key}_{s_key}"))
                 
+                # [إصلاح الخطأ هنا]: تم استخدام CATEGORIES.get أو قيمة افتراضية آمنة
                 cat_name = CATEGORIES.get(cat_key, "القسم")
                 markup.add(types.InlineKeyboardButton(f"❌ حذف القسم بالكامل ({cat_name})", callback_data=f"delcat_{cat_key}"))
                 markup.add(types.InlineKeyboardButton("🔙 رجوع للأقسام", callback_data='adm_delete_srv_list'))
