@@ -2010,6 +2010,27 @@ def query(call):
 
             srv_key = call.data
 
+            # 1. إذا كانت الخدمة تحتوي على تيرات (خيارات أزرار جاهزة مسبقاً)
+            if data.get('is_custom_tiers') and 'tiers' in data:
+                markup = types.InlineKeyboardMarkup(row_width=2)
+                for t in data['tiers']:
+                    t_qty = t['qty']
+                    t_price = get_service_price(chat_id, t['price'])
+                    btn_label = f"{t_qty} ({t_price} نقطة)"
+                    markup.add(types.InlineKeyboardButton(btn_label, callback_data=f"buytier_{srv_key}_{t_qty}"))
+                
+                # زر اختيار العدد يدوياً في الأسفل
+                markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك (يدوي)", callback_data=f"custom_{srv_key}"))
+                markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=data.get('category', 'back_start')))
+                
+                text_menu = f"📦 **{data['name']}**\n━━━━━━━━━━━━━━━━━━━\n\nاختر الكمية المطلوبة من الأزرار أدناه أو أدخلها يدوياً:"
+                try:
+                    bot.edit_message_text(text_menu, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
+                except Exception:
+                    bot.send_message(chat_id, text_menu, reply_markup=markup, parse_mode="Markdown")
+                return
+
+            # 2. الخدمات المباشرة أو بطاقات الآيتونز والـ eSIM
             if data.get('category') in ['cat_itunes', 'cat_esim'] or data.get('service_id') == 0:
                 final_price = get_service_price(chat_id, data.get('price', 1.0))
                 
@@ -2042,6 +2063,7 @@ def query(call):
                     bot.send_message(chat_id, text_confirm, reply_markup=markup_confirm, parse_mode="Markdown")
                 return
 
+            # 3. باقي الخدمات العادية التي تتطلب إدخال الرابط
             base_price = float(data.get('price', 1.0))
             final_price = get_service_price(chat_id, base_price)
             api_qty = data.get('qty', 1000)
@@ -2065,6 +2087,7 @@ def query(call):
                 bot.register_next_step_handler(call.message, prepare_order_summary_direct, final_price, data['name'])
             else:
                 bot.register_next_step_handler(call.message, prepare_order_summary, final_price, data['service_id'], api_qty, data['name'])
+
 
         elif call.data.startswith('buytier_'):
             try:
