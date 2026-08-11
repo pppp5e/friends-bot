@@ -935,8 +935,9 @@ def query(call):
                 bot.edit_message_text("🛠️ **إدارة صيانة الأزرار والأقسام الشاملة:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
                 return
 
-        
-                # معالجة حذف خدمة مفردة، مجموعة، أو قسم بالكامل للأدمن مع رسائل الحالة الفورية
+        # ==========================================
+        # معالج الحذف الموحد والمنظم الجديد (بدون أي تكرار)
+        # ==========================================
         if (data.startswith('delsrv_') or data.startswith('delgroup_') or data.startswith('delcat_')) and chat_id == ADMIN_ID:
             is_cat_del = data.startswith('delcat_')
             loading_msg_text = "⏳ جاري حذف القسم بالكامل، يرجى الانتظار..." if is_cat_del else "⏳ جاري حذف الخدمة، يرجى الانتظار..."
@@ -947,7 +948,7 @@ def query(call):
                 pass
 
             try:
-                # 1. إذا كان الأمر حذف قسم بالكامل
+                # 1. حالة حذف القسم بالكامل
                 if is_cat_del:
                     cat_to_del = data.replace('delcat_', '', 1).strip()
                     if cat_to_del in CATEGORIES:
@@ -980,18 +981,14 @@ def query(call):
                         except Exception as e:
                             print(f"Error updating custom services after category delete: {e}")
 
-                        try:
-                            bot.answer_callback_query(call.id, f"✅ تم حذف قسم ({cat_name}) بالكامل بنجاح!", show_alert=True)
-                        except Exception:
-                            pass
-
+                        bot.answer_callback_query(call.id, f"✅ تم حذف قسم ({cat_name}) بالكامل بنجاح!", show_alert=True)
                         admin_panel_shortcut(chat_id, message_id)
                         return
                     else:
                         bot.answer_callback_query(call.id, "❌ لم يتم الحذف: القسم غير موجود أو تم حذفه مسبقاً!", show_alert=True)
                         return
 
-                # 2. حل مشكلة حذف الخدمة الفردية أو المجموعات بدقة تامة
+                # 2. حالة حذف الخدمة الفردية أو المجموعات بدقة تامة
                 keys_to_delete = []
                 cat_key = 'cat_insta'
 
@@ -1006,11 +1003,10 @@ def query(call):
                         cat_key = parts[1]
                         target_srv_key = parts[2]
                         
-                        # التحقق أولاً إذا كان المفتاح موجوداً بشكل مباشر كخدمة فردية
                         if target_srv_key in SERVICES:
                             keys_to_delete.append(target_srv_key)
+                            cat_key = SERVICES[target_srv_key].get('category', 'cat_insta')
                         else:
-                            # البحث بالاسم الأساسي لحذف المجموعة المرتبطة
                             target_base_name = ""
                             if target_srv_key in SERVICES:
                                 target_base_name = SERVICES[target_srv_key].get('name', '')
@@ -1027,6 +1023,13 @@ def query(call):
                                 if srv_base_name.strip() == target_base_name:
                                     keys_to_delete.append(srv_key)
 
+                # بحث احتياطي إذا لم يُطابق بدقة
+                if not keys_to_delete:
+                    for srv_key, srv_data in list(SERVICES.items()):
+                        if data in srv_key or srv_key in data:
+                            keys_to_delete.append(srv_key)
+                            cat_key = srv_data.get('category', 'cat_insta')
+
                 if not keys_to_delete:
                     bot.answer_callback_query(call.id, "❌ لم يتم الحذف: هذه الخدمة غير موجودة أو تم حذفها مسبقاً!", show_alert=True)
                     return
@@ -1034,6 +1037,7 @@ def query(call):
                 # تنفيذ الحذف الفعلي من الذاكرة وقاعدة البيانات
                 for sk in keys_to_delete:
                     if sk in SERVICES:
+                        cat_key = SERVICES[sk].get('category', 'cat_insta')
                         del SERVICES[sk]
                     try:
                         check = supabase.table("deleted_services").select("srv_key").eq("srv_key", sk).execute()
@@ -1071,8 +1075,9 @@ def query(call):
                 markup.add(types.InlineKeyboardButton(f"❌ حذف القسم بالكامل ({cat_name})", callback_data=f"delcat_{cat_key}"))
                 markup.add(types.InlineKeyboardButton("🔙 رجوع للأقسام", callback_data='adm_delete_srv_list'))
 
+                bot.answer_callback_query(call.id, "✅ تم حذف الخدمة بنجاح!", show_alert=False)
+                
                 try:
-                    bot.answer_callback_query(call.id, "✅ تم حذف الخدمة بنجاح!", show_alert=False)
                     bot.edit_message_text(
                         f"📁 **{cat_name}**\n✅ تم حذف الخدمة بنجاح ولن تظهر بعد الآن.\n\nاختر خدمة أخرى للحذف:",
                         chat_id,
@@ -1084,17 +1089,9 @@ def query(call):
                     bot.send_message(chat_id, f"✅ تم حذف الخدمة بنجاح!", reply_markup=markup, parse_mode="Markdown")
 
             except Exception as e:
-                print(f"Delete Error: {e}")
-                try:
-                    bot.answer_callback_query(call.id, "❌ لم يتم الحذف: حدث خطأ غير متوقع!", show_alert=True)
-                    bot.send_message(chat_id, f"❌ حدث خطأ أثناء الحذف:\n`{str(e)}`", parse_mode="Markdown")
-                except Exception:
-                    pass
+                print(f"Critical Delete Error: {e}")
+                bot.answer_callback_query(call.id, f"❌ حدث خطأ أثناء الحذف: {str(e)[:50]}", show_alert=True)
             return
-
-
-
-
 
         if data in CATEGORIES or data in ['cat_insta', 'cat_telegram', 'cat_games', 'cat_itunes', 'cat_esim', 'insta_menu', 'telegram_menu', 'games_menu', 'itunes_menu', 'esim_menu']:
             if data in ['cat_insta', 'insta_menu']: data = 'cat_insta'
@@ -1820,221 +1817,6 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع للأقسام", callback_data='adm_delete_srv_list'))
             
             bot.edit_message_text(f"📁 **{cat_name}**\nاختر الخدمة الرئيسية لحذفها كـ مجموعة نهائياً:", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
-
-        elif data.startswith('delgroup_') and chat_id == ADMIN_ID:
-            parts = data.split('_', 2)
-            if len(parts) >= 3:
-                cat_key = parts[1]
-                target_srv_key = parts[2]
-
-                suffixes = [
-                    ' 1k', ' 2k', ' 3k', ' 4k', ' 5k', ' 10k',
-                    ' (ضمان 20 يوم)', ' ثابت', ' فلاش', ' دراجون'
-                ]
-
-                target_base_name = ""
-                if target_srv_key in SERVICES:
-                    target_base_name = SERVICES[target_srv_key].get('name', '')
-                    for suffix in suffixes:
-                        target_base_name = target_base_name.replace(suffix, '')
-                    target_base_name = target_base_name.strip()
-
-                if not target_base_name:
-                    bot.answer_callback_query(
-                        call.id,
-                        "❌ الخدمة غير موجودة أو تم حذفها مسبقاً!",
-                        show_alert=True
-                    )
-                else:
-                    keys_to_delete = []
-
-                    for srv_key, srv_data in list(SERVICES.items()):
-                        if srv_data.get('category') != cat_key:
-                            continue
-
-                        srv_base_name = srv_data.get('name', '')
-
-                        for suffix in suffixes:
-                            srv_base_name = srv_base_name.replace(suffix, '')
-
-                        if srv_base_name.strip() == target_base_name:
-                            keys_to_delete.append(srv_key)
-
-                    for srv_key in keys_to_delete:
-                        if srv_key in SERVICES:
-                            del SERVICES[srv_key]
-
-                        try:
-                            check = (
-                                supabase.table("deleted_services")
-                                .select("srv_key")
-                                .eq("srv_key", srv_key)
-                                .execute()
-                            )
-
-                            if not check.data:
-                                supabase.table("deleted_services").insert({
-                                    "srv_key": srv_key
-                                }).execute()
-
-                        except Exception as e:
-                            print(f"Error saving deleted service {srv_key}: {e}")
-
-                    try:
-                        custom_only = {
-                            key: value
-                            for key, value in SERVICES.items()
-                            if key.startswith('custom_srv_')
-                        }
-
-                        payload = {
-                            "key": "custom_services_list",
-                            "val_text": json.dumps(
-                                custom_only,
-                                ensure_ascii=False
-                            ) if custom_only else ""
-                        }
-
-                        supabase.table("settings").upsert(
-                            payload,
-                            on_conflict="key"
-                        ).execute()
-
-                    except Exception as e:
-                        print(f"Error updating custom services after group delete: {e}")
-
-                    bot.answer_callback_query(
-                        call.id,
-                        f"✅ تم حذف مجموعة ({target_base_name}) نهائياً!",
-                        show_alert=True
-                    )
-
-                    markup = types.InlineKeyboardMarkup(row_width=1)
-
-                    cat_services = {
-                        key: value
-                        for key, value in SERVICES.items()
-                        if value.get('category') == cat_key
-                    }
-
-                    seen_names = set()
-
-                    for srv_key, srv_data in cat_services.items():
-                        base_name = srv_data.get('name', '')
-
-                        for suffix in suffixes:
-                            base_name = base_name.replace(suffix, '')
-
-                        base_name = base_name.strip()
-
-                        if base_name not in seen_names:
-                            seen_names.add(base_name)
-
-                            markup.add(
-                                types.InlineKeyboardButton(
-                                    f"🗑️ {base_name}",
-                                    callback_data=f"delgroup_{cat_key}_{srv_key}"
-                                )
-                            )
-
-                    cat_name = CATEGORIES.get(cat_key, "القسم")
-
-                    markup.add(
-                        types.InlineKeyboardButton(
-                            f"❌ حذف القسم بالكامل ({cat_name})",
-                            callback_data=f"delcat_{cat_key}"
-                        )
-                    )
-
-                    markup.add(
-                        types.InlineKeyboardButton(
-                            "🔙 رجوع للأقسام",
-                            callback_data="adm_delete_srv_list"
-                        )
-                    )
-
-                    try:
-                        bot.edit_message_text(
-                            f"📁 **{cat_name}**\n"
-                            f"✅ تم حذف الخدمة بنجاح ولن تظهر بعد الآن.\n"
-                            f"اختر خدمة أخرى للحذف:",
-                            chat_id,
-                            message_id,
-                            reply_markup=markup,
-                            parse_mode="Markdown"
-                        )
-
-                    except Exception as e:
-                        print(f"Error updating delete menu: {e}")
-                        
-        elif data.startswith('delcat_') and chat_id == ADMIN_ID:
-            cat_to_del = data.replace('delcat_', '', 1)
-
-            if cat_to_del in CATEGORIES:
-                cat_name = CATEGORIES[cat_to_del]
-
-                keys_to_del = [
-                    k for k, v in SERVICES.items()
-                    if v.get('category') == cat_to_del
-                ]
-
-                for k in keys_to_del:
-                    if k in SERVICES:
-                        del SERVICES[k]
-
-                    try:
-                        supabase.table("deleted_services").insert(
-                            {"srv_key": k}
-                        ).execute()
-                    except Exception:
-                        pass
-
-                del CATEGORIES[cat_to_del]
-
-                try:
-                    check_category = (
-                        supabase.table("deleted_categories")
-                        .select("cat_key")
-                        .eq("cat_key", cat_to_del)
-                        .execute()
-                    )
-
-                    if not check_category.data:
-                        supabase.table("deleted_categories").insert({
-                            "cat_key": cat_to_del
-                        }).execute()
-
-                except Exception as e:
-                    print(f"Error saving deleted category: {e}")
-
-                try:
-                    custom_only = {
-                        key: value
-                        for key, value in SERVICES.items()
-                        if key.startswith("custom_srv_")
-                    }
-
-                    supabase.table("settings").upsert(
-                        {
-                            "key": "custom_services_list",
-                            "val_text": json.dumps(
-                                custom_only,
-                                ensure_ascii=False
-                            ) if custom_only else ""
-                        },
-                        on_conflict="key"
-                    ).execute()
-
-                except Exception as e:
-                    print(f"Error updating custom services after category delete: {e}")
-
-                bot.answer_callback_query(
-                    call.id,
-                    f"✅ تم حذف قسم ({cat_name}) نهائياً!",
-                    show_alert=True
-                )
-
-                admin_panel_shortcut(chat_id, message_id)
 
         elif data == 'adm_menu_finance' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
