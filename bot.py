@@ -29,10 +29,6 @@ CHANNEL_LINKS = ["https://t.me/almohlgm"]
 API_URL = "https://darkfollow.shop/api/v2"
 API_KEY = os.environ.get("API_KEY", "Ig1FjwBweH3inDwnjLvv7Dt1ZzVRoKKNMF7QysS9UT0sSINTUKmWYdohsm3U")
 
-# تم ضبط الرابط والمفتاح بشكل صريح ومباشر لمنع أخطاء الاتصال أو الحفظ في Railway
-SUPABASE_URL = "https://iwkszjsggdddiaotlzrk.supabase.co"
-SUPABASE_KEY = "sb_secret_oX-E_LE69VDx-eA4YGYQ3A_Ugb0x_wz"
-
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 user_click_tracker = {}
