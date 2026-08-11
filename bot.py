@@ -29,6 +29,12 @@ CHANNEL_LINKS = ["https://t.me/almohlgm"]
 API_URL = "https://darkfollow.shop/api/v2"
 API_KEY = os.environ.get("API_KEY", "Ig1FjwBweH3inDwnjLvv7Dt1ZzVRoKKNMF7QysS9UT0sSINTUKmWYdohsm3U")
 
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://iwkszjsggdddiaotlzrk.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")  # يسحب المفتاح بأمان من Railway
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
 user_click_tracker = {}
 pending_orders_cache = {}  
 transfer_cache = {}        
