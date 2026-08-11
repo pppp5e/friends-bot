@@ -29,8 +29,9 @@ CHANNEL_LINKS = ["https://t.me/almohlgm"]
 API_URL = "https://darkfollow.shop/api/v2"
 API_KEY = os.environ.get("API_KEY", "Ig1FjwBweH3inDwnjLvv7Dt1ZzVRoKKNMF7QysS9UT0sSINTUKmWYdohsm3U")
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://iwkszjsggdddiaotlzrk.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6lml3a3N6anNnZ2RkZGlhb3RsenJrIxlsa2UiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE3ODQ3MjIxMjQsImV4cCI6MjEwMDI5ODEyNH0.AbTTagJYFUbntAsUSTZtmdfcUUVFOC24ynWDXdo-ExM")
+# تم ضبط الرابط والمفتاح بشكل صريح ومباشر لمنع أخطاء الاتصال أو الحفظ في Railway
+SUPABASE_URL = "https://iwkszjsggdddiaotlzrk.supabase.co"
+SUPABASE_KEY = "sb_secret_lHQndlKjzrTis6IaCjKvMQ_PxZNacyj"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -934,11 +935,17 @@ def query(call):
                 bot.edit_message_text("🛠️ **إدارة صيانة الأزرار والأقسام الشاملة:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
                 return
 
+        # تم تأمين زر الحذف بالكامل وإلغاء التعليق بـ answer_callback_query فوري
         if data.startswith('delsrv_') and chat_id == ADMIN_ID:
+            try:
+                bot.answer_callback_query(call.id, "⏳ جاري الحذف...", show_alert=False)
+            except Exception:
+                pass
+
             srv_key = data.replace('delsrv_', '', 1).strip()
             if not srv_key or srv_key not in SERVICES:
                 try:
-                    bot.send_message(chat_id, f"❌ خطأ: الخدمة غير موجودة أو تم حذفها مسبقاً!")
+                    bot.answer_callback_query(call.id, "❌ هذه الخدمة غير موجودة أو تم حذفها مسبقاً!", show_alert=True)
                 except Exception:
                     pass
                 return
