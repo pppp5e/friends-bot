@@ -14,7 +14,7 @@ from supabase import create_client, Client
 # ==========================================
 # 1. إعدادات البوت والـ API والمسؤولين
 # ==========================================
-TOKEN = '8886482040:AAEzImc8dOE0ZBbsBD7mxpr5mcWaYDItyNc'
+TOKEN = os.environ.get("TOKEN", '8886482040:AAEzImc8dOE0ZBbsBD7mxpr5mcWaYDItyNc')
 bot = telebot.TeleBot(TOKEN)
 
 ADMIN_ID = 8758665082
@@ -27,7 +27,7 @@ CHANNELS = ["@almohlgm"]
 CHANNEL_LINKS = ["https://t.me/almohlgm"]
 
 API_URL = "https://darkfollow.shop/api/v2"
-API_KEY = "Ig1FjwBweH3inDwnjLvv7Dt1ZzVRoKKNMF7QysS9UT0sSINTUKmWYdohsm3U"
+API_KEY = os.environ.get("API_KEY", "Ig1FjwBweH3inDwnjLvv7Dt1ZzVRoKKNMF7QysS9UT0sSINTUKmWYdohsm3U")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://iwkszjsggdddiaotlzrk.supabase.co")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6lml3a3N6anNnZ2RkZGlhb3RsenJrIxlsa2UiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE3ODQ3MjIxMjQsImV4cCI6MjEwMDI5ODEyNH0.AbTTagJYFUbntAsUSTZtmdfcUUVFOC24ynWDXdo-ExM")
@@ -552,6 +552,28 @@ def prepare_order_summary(message, base_price, service_id, quantity, data_name):
     }
     send_order_confirmation_screen(chat_id)
 
+def send_order_confirmation_screen(chat_id):
+    order_data = pending_orders_cache.get(chat_id)
+    if not order_data:
+        return
+    markup_confirm = types.InlineKeyboardMarkup(row_width=1)
+    markup_confirm.add(
+        types.InlineKeyboardButton("🛒 إضافة لسلة المشتريات", callback_data='add_to_cart_now'),
+        types.InlineKeyboardButton("✅ تأكيد الشراء الآن", callback_data='confirm_order_now'),
+        types.InlineKeyboardButton("❌ إلغاء الطلب", callback_data='cancel_order_now')
+    )
+    text_confirm = (
+        f"🧾 **تأكيد ملخص الطلب:**\n"
+        f"━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📦 المنتج: {order_data['name']}\n"
+        f"🔗 التفاصيل/الرابط: `{order_data['link']}`\n"
+        f"💰 السعر النهائي: `{order_data['price']}` نقطة"
+    )
+    bot.send_message(chat_id, text_confirm, reply_markup=markup_confirm, parse_mode="Markdown")
+
+def prepare_order_summary_with_api_qty(message, base_price, service_id, quantity, data_name):
+    prepare_order_summary(message, base_price, service_id, quantity, data_name)
+
 def register_user_if_new(user_id, first_name, username, referrer_id=None):
     try:
         u = get_user(user_id)
@@ -837,13 +859,11 @@ def query(call):
         message_id = call.message.message_id
         data = call.data
 
-        # 🚨 إيقاف دائرة التحميل فوراً لأي زر في البوت لكي لا يعلق الزر أبدًا
         try:
             bot.answer_callback_query(call.id)
         except Exception:
             pass
 
-        # 👑 معالجة فورية ومضمونة لجميع أزرار الأدمن لمنع التعليق نهائياً
         if chat_id == ADMIN_ID:
             if data in ['start', 'back_start', 'admin_panel']:
                 admin_panel_shortcut(chat_id, message_id)
@@ -914,10 +934,8 @@ def query(call):
                 bot.edit_message_text("🛠️ **إدارة صيانة الأزرار والأقسام الشاملة:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
                 return
 
-        # معالجة حذف الخدمات المفردة للأدمن مباشرة وبكل أمان
         if data.startswith('delsrv_') and chat_id == ADMIN_ID:
             srv_key = data.replace('delsrv_', '', 1).strip()
-
             if not srv_key or srv_key not in SERVICES:
                 try:
                     bot.send_message(chat_id, f"❌ خطأ: الخدمة غير موجودة أو تم حذفها مسبقاً!")
@@ -929,11 +947,9 @@ def query(call):
                 del_name = SERVICES[srv_key].get('name', 'الخدمة')
                 cat_key = SERVICES[srv_key].get('category', 'cat_insta')
 
-                # 1. حذف الخدمة من الذاكرة الحية
                 if srv_key in SERVICES:
                     del SERVICES[srv_key]
 
-                # 2. حفظ الحذف في جدول deleted_services بقاعدة البيانات
                 try:
                     check = supabase.table("deleted_services").select("srv_key").eq("srv_key", srv_key).execute()
                     if not check.data:
@@ -941,7 +957,6 @@ def query(call):
                 except Exception as db_err:
                     print(f"DB Error: {db_err}")
 
-                # 3. تحديث الإعدادات
                 try:
                     custom_only = {k: v for k, v in SERVICES.items() if k.startswith('custom_srv_')}
                     supabase.table("settings").upsert({
@@ -951,7 +966,6 @@ def query(call):
                 except Exception as set_err:
                     print(f"Settings Error: {set_err}")
 
-                # 4. إعادة بناء الأزرار وتحديث القائمة
                 markup = types.InlineKeyboardMarkup(row_width=1)
                 cat_services = {k: v for k, v in SERVICES.items() if v.get('category') == cat_key}
                 cat_name = CATEGORIES.get(cat_key, "القسم")
@@ -983,13 +997,12 @@ def query(call):
                     pass
             return
 
-        # بقية معالجات البيانات والأزرار الأخرى...
         if data in CATEGORIES or data in ['cat_insta', 'cat_telegram', 'cat_games', 'cat_itunes', 'cat_esim', 'insta_menu', 'telegram_menu', 'games_menu', 'itunes_menu', 'esim_menu']:
-            if data in ['cat_insta', 'insta_menu']: call.data = 'cat_insta'
-            elif data in ['cat_telegram', 'telegram_menu']: call.data = 'cat_telegram'
-            elif data in ['cat_games', 'games_menu']: call.data = 'cat_games'
-            elif data in ['cat_itunes', 'itunes_menu']: call.data = 'cat_itunes'
-            elif data in ['cat_esim', 'esim_menu']: call.data = 'cat_esim'
+            if data in ['cat_insta', 'insta_menu']: data = 'cat_insta'
+            elif data in ['cat_telegram', 'telegram_menu']: data = 'cat_telegram'
+            elif data in ['cat_games', 'games_menu']: data = 'cat_games'
+            elif data in ['cat_itunes', 'itunes_menu']: data = 'cat_itunes'
+            elif data in ['cat_esim', 'esim_menu']: data = 'cat_esim'
 
         if check_spam(chat_id) or is_banned(chat_id):
             return
@@ -1005,16 +1018,7 @@ def query(call):
             main_menu(chat_id, message_id)
             return
 
-    except Exception as e:
-        print(f"Callback Error: {e}")
-
-
-
-
-
-        
-
-        elif call.data == 'cat_insta' or call.data == 'insta_menu':
+        elif data == 'cat_insta':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'back_start'
             markup = types.InlineKeyboardMarkup(row_width=1)
@@ -1039,7 +1043,7 @@ def query(call):
             )
             update_menu_safely(bot, chat_id, message_id, 'cat_insta', markup)
 
-        elif call.data == 'cat_telegram' or call.data == 'telegram_menu':
+        elif data == 'cat_telegram':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'back_start'
             markup = types.InlineKeyboardMarkup(row_width=1)
@@ -1064,7 +1068,7 @@ def query(call):
             )
             update_menu_safely(bot, chat_id, message_id, 'cat_telegram', markup)
 
-        elif call.data == 'cat_games' or call.data == 'games_menu':
+        elif data == 'cat_games':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'back_start'
             markup = types.InlineKeyboardMarkup(row_width=2)
@@ -1087,7 +1091,7 @@ def query(call):
             )
             update_menu_safely(bot, chat_id, message_id, 'cat_games', markup)
 
-        elif call.data == 'cat_itunes' or call.data == 'itunes_menu':
+        elif data == 'cat_itunes':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'back_start'
             markup = types.InlineKeyboardMarkup(row_width=1)
@@ -1103,7 +1107,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=back_target))
             update_menu_safely(bot, chat_id, message_id, 'cat_itunes', markup)
 
-        elif call.data == 'cat_esim' or call.data == 'esim_menu':
+        elif data == 'cat_esim':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'back_start'
             markup = types.InlineKeyboardMarkup(row_width=1)
@@ -1119,7 +1123,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=back_target))
             update_menu_safely(bot, chat_id, message_id, 'cat_esim', markup)
 
-        elif call.data == 'asiacell_recharge_menu':
+        elif data == 'asiacell_recharge_menu':
             if is_item_in_maintenance('asiacell_recharge_menu') and chat_id != ADMIN_ID:
                 bot.send_message(chat_id, "🛠️ خدمة شحن الرصيد قيد الصيانة حالياً.")
                 return
@@ -1136,8 +1140,8 @@ def query(call):
                 chat_id, message_id, reply_markup=markup, parse_mode="Markdown"
             )
 
-        elif call.data.startswith('asiapack_'):
-            amount_k = int(call.data.replace('asiapack_', ''))
+        elif data.startswith('asiapack_'):
+            amount_k = int(data.replace('asiapack_', ''))
             temp_recharge_phone_states[chat_id] = {'amount_k': amount_k}
             
             markup = types.InlineKeyboardMarkup()
@@ -1151,7 +1155,7 @@ def query(call):
             )
             bot.register_next_step_handler(msg, process_asiacell_phone_input)
 
-        elif call.data == 'view_my_cart':
+        elif data == 'view_my_cart':
             if is_item_in_maintenance('view_my_cart') and chat_id != ADMIN_ID:
                 bot.send_message(chat_id, "🛠️ قسم السلة قيد الصيانة حالياً.")
                 return
@@ -1174,12 +1178,12 @@ def query(call):
             )
             bot.edit_message_text(text, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data == 'clear_my_cart':
+        elif data == 'clear_my_cart':
             user_carts[chat_id] = []
             bot.send_message(chat_id, "🗑️ **تم تفريغ سلة المشتريات بنجاح.**", parse_mode="Markdown")
             main_menu(chat_id, message_id)
 
-        elif call.data == 'add_to_cart_now':
+        elif data == 'add_to_cart_now':
             order = pending_orders_cache.get(chat_id)
             if not order:
                 bot.send_message(chat_id, "⚠️ انتهت الجلسة.")
@@ -1193,7 +1197,7 @@ def query(call):
             bot.send_message(chat_id, f"🛒 **تمت إضافة ({order['name']}) إلى سلة المشتريات بنجاح!**", parse_mode="Markdown")
             main_menu(chat_id)
 
-        elif call.data == 'checkout_entire_cart':
+        elif data == 'checkout_entire_cart':
             cart = user_carts.get(chat_id, [])
             if not cart:
                 bot.send_message(chat_id, "❌ السلة فارغة.")
@@ -1229,7 +1233,7 @@ def query(call):
             user_carts[chat_id] = []
             bot.send_message(chat_id, f"🎉 **تم تنفيذ جميع طلبات السلة بنجاح! ({success_count} طلبات)**", parse_mode="Markdown")
 
-        elif call.data == 'top_services':
+        elif data == 'top_services':
             if is_item_in_maintenance('top_services') and chat_id != ADMIN_ID:
                 bot.send_message(chat_id, "🛠️ هذا القسم قيد الصيانة حالياً.")
                 return
@@ -1242,7 +1246,7 @@ def query(call):
             )
             update_menu_safely(bot, chat_id, message_id, 'top_services', markup)
 
-        elif call.data == 'active_giveaways':
+        elif data == 'active_giveaways':
             if is_item_in_maintenance('active_giveaways') and chat_id != ADMIN_ID:
                 bot.send_message(chat_id, "🛠️ قسم المسابقات قيد الصيانة حالياً.")
                 return
@@ -1259,8 +1263,8 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 العودة للقائمة", callback_data='start'))
             bot.edit_message_text("🏆 **اختر المسابقة للدخول والسحب العشوائي:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data.startswith('enter_gw_'):
-            gw_id = int(call.data.replace('enter_gw_', ''))
+        elif data.startswith('enter_gw_'):
+            gw_id = int(data.replace('enter_gw_', ''))
             res = supabase.table("giveaway_participants").select("*").eq("giveaway_id", gw_id).eq("user_id", chat_id).execute()
             
             if res.data:
@@ -1269,15 +1273,15 @@ def query(call):
                 supabase.table("giveaway_participants").insert({"giveaway_id": gw_id, "user_id": chat_id}).execute()
                 bot.send_message(chat_id, "✅ **تم دخولك للمسابقة بنجاح!**", parse_mode="Markdown")
 
-        elif call.data == 'transfer_points':
+        elif data == 'transfer_points':
             if is_item_in_maintenance('transfer_points') and chat_id != ADMIN_ID:
                 bot.send_message(chat_id, "🛠️ خدمة تحويل النقاط قيد الصيانة حالياً.")
                 return
             msg = bot.send_message(chat_id, "🔄 **أرسل الآيدي (ID) الخاص بالشخص المراد التحويل له:**", parse_mode="Markdown")
             bot.register_next_step_handler(msg, process_transfer_target_id)
 
-        elif call.data.startswith('tg_opt_'):
-            opt_type = call.data
+        elif data.startswith('tg_opt_'):
+            opt_type = data
             markup = types.InlineKeyboardMarkup(row_width=1)
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'cat_telegram'
@@ -1323,7 +1327,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=back_target))
             update_menu_safely(bot, chat_id, message_id, opt_type, markup)
 
-        elif call.data == 'insta_fol_sub_menu':
+        elif data == 'insta_fol_sub_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'cat_insta'
             markup = types.InlineKeyboardMarkup(row_width=1)
@@ -1335,7 +1339,7 @@ def query(call):
             )
             update_menu_safely(bot, chat_id, message_id, 'insta_fol_sub_menu', markup)
 
-        elif call.data == 'open_flash_fol':
+        elif data == 'open_flash_fol':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             for k in ['flash_fol_1k', 'flash_fol_2k', 'flash_fol_5k']:
@@ -1353,7 +1357,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='insta_fol_sub_menu'))
             update_menu_safely(bot, chat_id, message_id, 'open_flash_fol', markup)
 
-        elif call.data == 'insta_fol_menu':
+        elif data == 'insta_fol_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             for k in ['buy_fol_1k', 'buy_fol_2k', 'buy_fol_3k', 'buy_fol_4k', 'buy_fol_5k', 'buy_fol_10k']:
@@ -1371,7 +1375,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='insta_fol_sub_menu'))
             update_menu_safely(bot, chat_id, message_id, 'insta_fol_menu', markup)
 
-        elif call.data == 'open_dragon_fol':
+        elif data == 'open_dragon_fol':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             for k in ['dragon_fol_1k', 'dragon_fol_2k', 'dragon_fol_5k']:
@@ -1389,7 +1393,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='insta_fol_sub_menu'))
             update_menu_safely(bot, chat_id, message_id, 'open_dragon_fol', markup)
 
-        elif call.data == 'open_like_menu':
+        elif data == 'open_like_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             for k in ['buy_like_1k', 'buy_like_2k', 'buy_like_5k', 'buy_like_10k']:
@@ -1407,7 +1411,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='cat_insta'))
             update_menu_safely(bot, chat_id, message_id, 'open_like_menu', markup)
 
-        elif call.data == 'open_view_menu':
+        elif data == 'open_view_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             for k in ['buy_view_1k', 'buy_view_2k', 'buy_view_3k', 'buy_view_4k', 'buy_view_5k']:
@@ -1425,7 +1429,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='cat_insta'))
             update_menu_safely(bot, chat_id, message_id, 'open_view_menu', markup)
 
-        elif call.data == 'open_share_menu':
+        elif data == 'open_share_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             for k in ['buy_share_1k', 'buy_share_2k', 'buy_share_3k', 'buy_share_4k', 'buy_share_5k', 'buy_share_10k']:
@@ -1443,7 +1447,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='cat_insta'))
             update_menu_safely(bot, chat_id, message_id, 'open_share_menu', markup)
 
-        elif call.data == 'pubg_menu':
+        elif data == 'pubg_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             for k in ['pubg_60', 'pubg_120', 'pubg_180', 'pubg_336', 'pubg_688', 'pubg_1170']:
@@ -1459,7 +1463,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع للألعاب", callback_data='cat_games'))
             update_menu_safely(bot, chat_id, message_id, 'pubg_menu', markup)
 
-        elif call.data == 'ff_menu':
+        elif data == 'ff_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             for k in ['ff_100', 'ff_210', 'ff_530', 'ff_1080']:
@@ -1475,7 +1479,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع للألعاب", callback_data='cat_games'))
             update_menu_safely(bot, chat_id, message_id, 'ff_menu', markup)
 
-        elif call.data == 'ludo_menu':
+        elif data == 'ludo_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             for k in ['ludo_100', 'ludo_500']:
@@ -1491,7 +1495,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع للألعاب", callback_data='cat_games'))
             update_menu_safely(bot, chat_id, message_id, 'ludo_menu', markup)
 
-        elif call.data == 'coc_menu':
+        elif data == 'coc_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             for k in ['coc_500', 'coc_1200']:
@@ -1507,8 +1511,8 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع للألعاب", callback_data='cat_games'))
             update_menu_safely(bot, chat_id, message_id, 'coc_menu', markup)
 
-        elif call.data.startswith('custom_'):
-            base_service_key = call.data.replace('custom_', '')
+        elif data.startswith('custom_'):
+            base_service_key = data.replace('custom_', '')
             s_info = SERVICES.get(base_service_key)
             if not s_info:
                 for k, v in SERVICES.items():
@@ -1527,7 +1531,7 @@ def query(call):
             else:
                 bot.send_message(chat_id, "⚠️ هذه الخدمة لا تدعم الكميات المخصصة حالياً.")
 
-        elif call.data == 'ranks_info':
+        elif data == 'ranks_info':
             if is_item_in_maintenance('ranks_info') and chat_id != ADMIN_ID:
                 bot.send_message(chat_id, "🛠️ هذا القسم قيد الصيانة حالياً.")
                 return
@@ -1549,13 +1553,13 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 العودة للقائمة", callback_data='start'))
             bot.edit_message_text(text, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data == 'referral_menu':
+        elif data == 'referral_menu':
             if is_item_in_maintenance('referral_menu') and chat_id != ADMIN_ID:
                 bot.send_message(chat_id, "🛠️ هذا القسم قيد الصيانة حالياً.")
                 return
             referral_menu(chat_id, message_id)
 
-        elif call.data == 'daily_reward':
+        elif data == 'daily_reward':
             if is_item_in_maintenance('daily_reward') and chat_id != ADMIN_ID:
                 bot.send_message(chat_id, "🛠️ مكافأة اليوم قيد الصيانة حالياً.")
                 return
@@ -1571,7 +1575,7 @@ def query(call):
                 supabase.table("daily_reward").upsert({"user_id": chat_id, "last_claim": now}).execute()
                 bot.send_message(chat_id, f"🎉 تم استلام مكافأتك اليومية (0.1 نقطة) بنجاح!")
 
-        elif call.data == 'my_orders':
+        elif data == 'my_orders':
             if is_item_in_maintenance('my_orders') and chat_id != ADMIN_ID:
                 bot.send_message(chat_id, "🛠️ قسم طلباتي قيد الصيانة حالياً.")
                 return
@@ -1596,8 +1600,8 @@ def query(call):
                     )
                     bot.send_message(chat_id, text, parse_mode="HTML", reply_markup=markup_ord if markup_ord.keyboard else None)
 
-        elif call.data.startswith('track_order_'):
-            o_id = int(call.data.replace('track_order_', ''))
+        elif data.startswith('track_order_'):
+            o_id = int(data.replace('track_order_', ''))
             res = supabase.table("user_orders").select("*").eq("order_id", o_id).eq("user_id", chat_id).execute()
             if res.data:
                 ord_info = res.data[0]
@@ -1607,17 +1611,17 @@ def query(call):
             else:
                 bot.answer_callback_query(call.id, "❌ الطلب غير موجود.", show_alert=True)
 
-        elif call.data == 'enter_voucher_code':
+        elif data == 'enter_voucher_code':
             text_req = "🔑 **أرسل كود الشحن أو الهدية:**"
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='start'))
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_user_redeem_input)
 
-        elif call.data == 'admin_panel' and chat_id == ADMIN_ID:
+        elif data == 'admin_panel' and chat_id == ADMIN_ID:
             admin_panel_shortcut(chat_id, message_id)
 
-        elif call.data == 'adm_manage_services' and chat_id == ADMIN_ID:
+        elif data == 'adm_manage_services' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
                 types.InlineKeyboardButton("📁 إضافة قسم رئيسي جديد", callback_data='adm_add_new_category'),
@@ -1628,7 +1632,7 @@ def query(call):
             )
             bot.edit_message_text("📦 **قسم إدارة الأقسام والخدمات بالبوت:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data == 'adm_edit_descriptions' and chat_id == ADMIN_ID:
+        elif data == 'adm_edit_descriptions' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             desc_options = [
                 ('tg_opt_fixed', 'تليجرام ثابت'),
@@ -1650,8 +1654,8 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='adm_manage_services'))
             bot.edit_message_text("📝 **اختر القسم الذي تريد تعديل وصفه:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data.startswith('editdesc_') and chat_id == ADMIN_ID:
-            menu_key = call.data.replace('editdesc_', '')
+        elif data.startswith('editdesc_') and chat_id == ADMIN_ID:
+            menu_key = data.replace('editdesc_', '')
             admin_states[chat_id] = {'action': 'edit_desc', 'menu_key': menu_key}
             
             text_req = "📝 **أرسل الآن الوصف الجديد الذي تريده أن يظهر للمستخدم في هذا القسم:**"
@@ -1660,22 +1664,22 @@ def query(call):
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_admin_edit_desc)
 
-        elif call.data == 'adm_add_new_category' and chat_id == ADMIN_ID:
+        elif data == 'adm_add_new_category' and chat_id == ADMIN_ID:
             text_req = "📁 **أدخل مفتاح القسم باللغة الإنجليزية (مثال: `cat_tiktok`):**"
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_manage_services'))
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, step_add_category_key)
 
-        elif call.data == 'adm_add_new_srv_cat' and chat_id == ADMIN_ID:
+        elif data == 'adm_add_new_srv_cat' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             for cat_k, cat_v in CATEGORIES.items():
                 markup.add(types.InlineKeyboardButton(cat_v, callback_data=f"addsrv_cat_{cat_k}"))
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='adm_manage_services'))
             bot.edit_message_text("📂 **اختر القسم الرئيسي الذي تريد إضافة الخدمة فيه:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data.startswith('addsrv_cat_') and chat_id == ADMIN_ID:
-            cat_key = call.data.replace('addsrv_cat_', '')
+        elif data.startswith('addsrv_cat_') and chat_id == ADMIN_ID:
+            cat_key = data.replace('addsrv_cat_', '')
             temp_add_service[chat_id] = {'category': cat_key}
             
             text_req = "📝 **أدخل اسم الخدمة الجديدة التي ستظهر للمستخدمين:**"
@@ -1684,15 +1688,15 @@ def query(call):
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, step_srv_name)
 
-        elif call.data == 'adm_delete_srv_list' and chat_id == ADMIN_ID:
+        elif data == 'adm_delete_srv_list' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             for cat_k, cat_v in CATEGORIES.items():
                 markup.add(types.InlineKeyboardButton(cat_v, callback_data=f"adm_del_cat_srvs_{cat_k}"))
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='adm_manage_services'))
             bot.edit_message_text("📌 **اختر القسم لعرض خدماته وحذفها فوراً، أو لحذف القسم كله:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data.startswith('adm_del_cat_srvs_') and chat_id == ADMIN_ID:
-            cat_key = call.data.replace('adm_del_cat_srvs_', '')
+        elif data.startswith('adm_del_cat_srvs_') and chat_id == ADMIN_ID:
+            cat_key = data.replace('adm_del_cat_srvs_', '')
             cat_name = CATEGORIES.get(cat_key, "القسم")
             
             markup = types.InlineKeyboardMarkup(row_width=1)
@@ -1718,8 +1722,8 @@ def query(call):
             
             bot.edit_message_text(f"📁 **{cat_name}**\nاختر الخدمة الرئيسية لحذفها كـ مجموعة نهائياً:", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data.startswith('delgroup_') and chat_id == ADMIN_ID:
-            parts = call.data.split('_', 2)
+        elif data.startswith('delgroup_') and chat_id == ADMIN_ID:
+            parts = data.split('_', 2)
             if len(parts) >= 3:
                 cat_key = parts[1]
                 target_srv_key = parts[2]
@@ -1864,97 +1868,8 @@ def query(call):
                     except Exception as e:
                         print(f"Error updating delete menu: {e}")
                         
-        elif call.data.startswith('delsrv_') and chat_id == ADMIN_ID:
-            # 1. إيقاف دائرة التحميل من تيليجرام فوراً لمنع تعليق الزر
-            try:
-                bot.answer_callback_query(call.id)
-            except Exception:
-                pass
-
-            srv_key = call.data.replace('delsrv_', '', 1).strip()
-
-            if not srv_key or srv_key not in SERVICES:
-                try:
-                    bot.answer_callback_query(call.id, "❌ هذه الخدمة غير موجودة أو تم حذفها مسبقاً!", show_alert=True)
-                except Exception:
-                    pass
-                return
-
-            try:
-                del_name = SERVICES[srv_key].get('name', 'الخدمة')
-                cat_key = SERVICES[srv_key].get('category', 'cat_insta')
-
-                # 2. الحذف الفعلي من الذاكرة الحية للبوت
-                if srv_key in SERVICES:
-                    del SERVICES[srv_key]
-
-                # 3. حفظ الحذف في جدول deleted_services بقاعدة البيانات لمنع عودتها عند الـ Restart
-                try:
-                    check = supabase.table("deleted_services").select("srv_key").eq("srv_key", srv_key).execute()
-                    if not check.data:
-                        supabase.table("deleted_services").insert({"srv_key": srv_key}).execute()
-                except Exception as e:
-                    print(f"DB Error (deleted_services): {e}")
-
-                # 4. تحديث قائمة الخدمات المخصصة في جدول الإعدادات
-                try:
-                    custom_only = {k: v for k, v in SERVICES.items() if k.startswith('custom_srv_')}
-                    supabase.table("settings").upsert({
-                        "key": "custom_services_list",
-                        "val_text": json.dumps(custom_only, ensure_ascii=False) if custom_only else ""
-                    }, on_conflict="key").execute()
-                except Exception as e:
-                    print(f"DB Error (settings): {e}")
-
-                # 5. إعادة بناء القائمة المحدثة للأزرار
-                markup = types.InlineKeyboardMarkup(row_width=1)
-                cat_services = {k: v for k, v in SERVICES.items() if v.get('category') == cat_key}
-                cat_name = CATEGORIES.get(cat_key, "القسم")
-
-                for s_key, s_data in cat_services.items():
-                    s_name = s_data.get('name', '').strip()
-                    if s_name:
-                        markup.add(
-                            types.InlineKeyboardButton(
-                                f"🗑️ {s_name}",
-                                callback_data=f"delsrv_{s_key}"
-                            )
-                        )
-
-                markup.add(types.InlineKeyboardButton(f"❌ حذف القسم بالكامل ({cat_name})", callback_data=f"delcat_{cat_key}"))
-                markup.add(types.InlineKeyboardButton("🔙 رجوع للأقسام", callback_data='adm_delete_srv_list'))
-
-                # 6. محاولة تحديث الرسالة بأمان تام مع منع خطأ تعليق الرسائل المتطابقة
-                try:
-                    bot.edit_message_text(
-                        f"📁 **{cat_name}**\n"
-                        f"✅ تم حذف ({del_name}) بنجاح ولن تظهر بعد الآن.\n\n"
-                        f"اختر خدمة أخرى للحذف:",
-                        chat_id,
-                        message_id,
-                        reply_markup=markup,
-                        parse_mode="Markdown"
-                    )
-                except Exception as edit_err:
-                    print(f"Edit message warning: {edit_err}")
-                    # في حال لم تتغير الرسالة، نرسل رسالة جديدة لتأكيد الحذف وتحديث القائمة
-                    bot.send_message(
-                        chat_id,
-                        f"✅ تم حذف ({del_name}) بنجاح!",
-                        reply_markup=markup,
-                        parse_mode="Markdown"
-                    )
-
-            except Exception as e:
-                print(f"Critical error in delsrv: {e}")
-                try:
-                    bot.send_message(chat_id, f"❌ حدث خطأ أثناء تنفيذ الحذف: `{str(e)}`", parse_mode="Markdown")
-                except Exception:
-                    pass
-
-            
-        elif call.data.startswith('delcat_') and chat_id == ADMIN_ID:
-            cat_to_del = call.data.replace('delcat_', '', 1)
+        elif data.startswith('delcat_') and chat_id == ADMIN_ID:
+            cat_to_del = data.replace('delcat_', '', 1)
 
             if cat_to_del in CATEGORIES:
                 cat_name = CATEGORIES[cat_to_del]
@@ -2022,7 +1937,7 @@ def query(call):
 
                 admin_panel_shortcut(chat_id, message_id)
 
-        elif call.data == 'adm_menu_finance' and chat_id == ADMIN_ID:
+        elif data == 'adm_menu_finance' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
                 types.InlineKeyboardButton("💵 رصيد DarkFollow المالي", callback_data='adm_check_df_balance'),
@@ -2033,7 +1948,7 @@ def query(call):
             )
             bot.edit_message_text("🏷️ **قسم التحكم بالأسعار والمالية:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data == 'adm_check_df_balance' and chat_id == ADMIN_ID:
+        elif data == 'adm_check_df_balance' and chat_id == ADMIN_ID:
             res_bal = get_api_balance()
             if isinstance(res_bal, dict) and 'balance' in res_bal:
                 bal_val = res_bal['balance']
@@ -2043,7 +1958,7 @@ def query(call):
             else:
                 bot.answer_callback_query(call.id, "تعذر جلب الرصيد من المزود حالياً.", show_alert=True)
 
-        elif call.data == 'adm_force_sync_prices' and chat_id == ADMIN_ID:
+        elif data == 'adm_force_sync_prices' and chat_id == ADMIN_ID:
             success, result = sync_prices_from_api_logic()
             if success:
                 bot.answer_callback_query(call.id, f"✅ تمت مزامنة وتحديث ({result}) خدمة بنجاح!", show_alert=True)
@@ -2052,15 +1967,15 @@ def query(call):
                 bot.answer_callback_query(call.id, "❌ فشلت عملية المزامنة مع المزود.", show_alert=True)
                 bot.send_message(chat_id, f"❌ **تعذر إتمام المزامنة:**\n`{result}`", parse_mode="Markdown")
 
-        elif call.data == 'adm_edit_single_price' and chat_id == ADMIN_ID:
+        elif data == 'adm_edit_single_price' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=2)
             for key, val in SERVICES.items():
                 markup.add(types.InlineKeyboardButton(f"{val['name']} ({val.get('price', 0)} ن)", callback_data=f"setprc_{key}"))
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='adm_menu_finance'))
             bot.edit_message_text("✏️ **اختر الخدمة المراد تعديل سعرها:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data.startswith('setprc_') and chat_id == ADMIN_ID:
-            service_key = call.data.replace('setprc_', '')
+        elif data.startswith('setprc_') and chat_id == ADMIN_ID:
+            service_key = data.replace('setprc_', '')
             service_info = SERVICES.get(service_key)
             if service_info:
                 text_req = f"✏️ **الخدمة:** {service_info['name']}\n💰 السعر الحالي: `{service_info.get('price', 0)}` نقطة\n\nأرسل **السعر الجديد** بالنقاط الآن:"
@@ -2069,7 +1984,7 @@ def query(call):
                 bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
                 bot.register_next_step_handler(call.message, process_update_single_price, service_key)
 
-        elif call.data == 'adm_bulk_price_pct_menu' and chat_id == ADMIN_ID:
+        elif data == 'adm_bulk_price_pct_menu' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
                 types.InlineKeyboardButton("📉 خفض السعر بنسبة (%)", callback_data='adm_bulk_decrease_pct'),
@@ -2078,21 +1993,21 @@ def query(call):
             )
             bot.edit_message_text("📈 **اختر نوع تعديل الأسعار الكلي:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data == 'adm_bulk_decrease_pct' and chat_id == ADMIN_ID:
+        elif data == 'adm_bulk_decrease_pct' and chat_id == ADMIN_ID:
             text_req = "📉 **خفض أسعار الخدمات:**\n\nأدخل نسبة الخفض (مثال: `10` لخفض الأسعار 10%):"
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_bulk_price_pct_menu'))
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_update_bulk_price_decrease)
 
-        elif call.data == 'adm_bulk_increase_pct' and chat_id == ADMIN_ID:
+        elif data == 'adm_bulk_increase_pct' and chat_id == ADMIN_ID:
             text_req = "📈 **زيادة أسعار الخدمات:**\n\nأدخل نسبة الزيادة (مثال: `15` لزيادة الأسعار 15%):"
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_bulk_price_pct_menu'))
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_update_bulk_price_increase)
 
-        elif call.data == 'adm_menu_users' and chat_id == ADMIN_ID:
+        elif data == 'adm_menu_users' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
                 types.InlineKeyboardButton("🔍 البحث عن مستخدم وتعديل رصيده", callback_data='adm_search'),
@@ -2103,21 +2018,21 @@ def query(call):
             )
             bot.edit_message_text("👥 **قسم إدارة وتتبع المستخدمين والوكلاء:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data == 'adm_search' and chat_id == ADMIN_ID:
+        elif data == 'adm_search' and chat_id == ADMIN_ID:
             text_req = "🔍 **أرسل ID المستخدم أو اسم المستخدم (@username) للبحث عنه:**"
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_menu_users'))
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_admin_user_search)
 
-        elif call.data == 'adm_promote_reseller_prompt' and chat_id == ADMIN_ID:
+        elif data == 'adm_promote_reseller_prompt' and chat_id == ADMIN_ID:
             text_req = "🕶️ **أرسل ID المستخدم لترقيته إلى رتبة (وكيل معتمد):**"
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_menu_users'))
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_admin_promote_reseller)
 
-        elif call.data == 'adm_count' and chat_id == ADMIN_ID:
+        elif data == 'adm_count' and chat_id == ADMIN_ID:
             try:
                 res_u = supabase.table("users").select("user_id", count="exact", head=True).execute()
                 total_u = res_u.count if res_u.count is not None else 0
@@ -2134,7 +2049,7 @@ def query(call):
             except Exception as e:
                 bot.send_message(chat_id, f"❌ حدث خطأ أثناء جلب الإحصائيات: {e}")
 
-        elif call.data == 'adm_list_banned' and chat_id == ADMIN_ID:
+        elif data == 'adm_list_banned' and chat_id == ADMIN_ID:
             res = supabase.table("users").select("user_id, username").eq("is_banned", 1).execute()
             banned_users = res.data if res.data else []
             if not banned_users:
@@ -2146,13 +2061,13 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='adm_menu_users'))
             bot.edit_message_text("🚫 **قائمة المحظورين:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data.startswith('unban_') and chat_id == ADMIN_ID:
-            b_id = int(call.data.replace('unban_', ''))
+        elif data.startswith('unban_') and chat_id == ADMIN_ID:
+            b_id = int(data.replace('unban_', ''))
             supabase.table("users").update({"is_banned": 0}).eq("user_id", b_id).execute()
             bot.send_message(chat_id, f"✅ **تم فك الحظر عن المستخدم (`{b_id}`) بنجاح!**", parse_mode="Markdown")
 
-        elif call.data.startswith('admin_add_pts_') and chat_id == ADMIN_ID:
-            target_uid = int(call.data.replace('admin_add_pts_', ''))
+        elif data.startswith('admin_add_pts_') and chat_id == ADMIN_ID:
+            target_uid = int(data.replace('admin_add_pts_', ''))
             admin_states[chat_id] = {'action': 'add_pts', 'target': target_uid}
             
             text_req = f"💰 **أدخل عدد النقاط المراد إضافتها للمستخدم (`{target_uid}`):**"
@@ -2161,8 +2076,8 @@ def query(call):
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_admin_modify_points)
 
-        elif call.data.startswith('admin_msg_') and chat_id == ADMIN_ID:
-            target_uid = int(call.data.replace('admin_msg_', ''))
+        elif data.startswith('admin_msg_') and chat_id == ADMIN_ID:
+            target_uid = int(data.replace('admin_msg_', ''))
             admin_states[chat_id] = {'action': 'send_msg', 'target': target_uid}
             
             text_req = f"💬 **أرسل الرسالة للمستخدم (`{target_uid}`):**"
@@ -2171,7 +2086,7 @@ def query(call):
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_admin_send_direct_msg)
 
-        elif call.data == 'adm_menu_promos' and chat_id == ADMIN_ID:
+        elif data == 'adm_menu_promos' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
                 types.InlineKeyboardButton("🎁 إنشاء كود شحن فردي", callback_data='adm_gen_card'),
@@ -2182,28 +2097,28 @@ def query(call):
             )
             bot.edit_message_text("🎟️ **قسم الهدايا، المسابقات والكروت الشحن:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data == 'adm_gen_card' and chat_id == ADMIN_ID:
+        elif data == 'adm_gen_card' and chat_id == ADMIN_ID:
             text_req = "أرسل قيمة النقاط لكود الشحن المراد إنشاؤه:"
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_menu_promos'))
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_gen_card)
 
-        elif call.data == 'adm_gen_gift' and chat_id == ADMIN_ID:
+        elif data == 'adm_gen_gift' and chat_id == ADMIN_ID:
             text_req = "🎟️ **أدخل الكود وقيمة النقاط وعدد الأشخاص يفصل بينها مسافة:**"
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_menu_promos'))
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_gen_gift_code)
 
-        elif call.data == 'adm_create_gw' and chat_id == ADMIN_ID:
+        elif data == 'adm_create_gw' and chat_id == ADMIN_ID:
             text_req = "🏆 **أدخل عنوان المسابقة - نقاط الجائزة - عدد الفائزين:**"
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_menu_promos'))
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_create_giveaway)
 
-        elif call.data == 'adm_draw_gw' and chat_id == ADMIN_ID:
+        elif data == 'adm_draw_gw' and chat_id == ADMIN_ID:
             res = supabase.table("giveaways").select("*").eq("is_active", 1).execute()
             gws = res.data if res.data else []
             if not gws:
@@ -2215,8 +2130,8 @@ def query(call):
                 markup.add(types.InlineKeyboardButton(f"🎲 سحب فائزين: {g['title']}", callback_data=f"draw_winners_{g['id']}"))
             bot.edit_message_text("🎲 **اختر المسابقة المراد إجراء السحب العشوائي لها:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data.startswith('draw_winners_') and chat_id == ADMIN_ID:
-            gw_id = int(call.data.replace('draw_winners_', ''))
+        elif data.startswith('draw_winners_') and chat_id == ADMIN_ID:
+            gw_id = int(data.replace('draw_winners_', ''))
             gw_res = supabase.table("giveaways").select("*").eq("id", gw_id).execute()
             if not gw_res.data:
                 return
@@ -2245,7 +2160,7 @@ def query(call):
 
             bot.send_message(ADMIN_ID, f"🎉 **تم إجراء السحب العشوائي للمسابقة ({gw['title']}) بنجاح!**\n\n🏆 **الفائزون:**\n{winners_text}", parse_mode="Markdown")
 
-        elif call.data == 'adm_menu_system' and chat_id == ADMIN_ID:
+        elif data == 'adm_menu_system' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
                 types.InlineKeyboardButton("📢 إذاعة مع التثبيت والخيارات", callback_data='adm_targeted_broadcast'),
@@ -2255,7 +2170,7 @@ def query(call):
             )
             bot.edit_message_text("⚙️ **قسم إعدادات النظام والإذاعات:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data == 'adm_targeted_broadcast' and chat_id == ADMIN_ID:
+        elif data == 'adm_targeted_broadcast' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
                 types.InlineKeyboardButton("📢 إذاعة لجميع الأعضاء (عادية)", callback_data='bc_type_all'),
@@ -2265,8 +2180,8 @@ def query(call):
             )
             bot.edit_message_text("📢 **اختر نوع الإذاعة المطلوبة:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data.startswith('bc_type_') and chat_id == ADMIN_ID:
-            b_type = call.data.replace('bc_type_', '')
+        elif data.startswith('bc_type_') and chat_id == ADMIN_ID:
+            b_type = data.replace('bc_type_', '')
             admin_states[chat_id] = {'action': 'broadcast', 'type': b_type}
             
             text_req = "📢 **أرسل الآن الرسالة لإذاعتها:**"
@@ -2275,7 +2190,7 @@ def query(call):
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             bot.register_next_step_handler(call.message, process_admin_broadcast_execution)
 
-        elif call.data == 'adm_behavior_analytics' and chat_id == ADMIN_ID:
+        elif data == 'adm_behavior_analytics' and chat_id == ADMIN_ID:
             res_orders = supabase.table("user_orders").select("*").execute()
             orders = res_orders.data if res_orders.data else []
             total_orders = len(orders)
@@ -2296,7 +2211,7 @@ def query(call):
             )
             bot.send_message(chat_id, text, parse_mode="Markdown")
 
-        elif call.data == 'adm_stats' and chat_id == ADMIN_ID:
+        elif data == 'adm_stats' and chat_id == ADMIN_ID:
             res_users = supabase.table("users").select("user_id, first_name, total_spent").order("total_spent", desc=True).limit(5).execute()
             top_users = res_users.data if res_users.data else []
             
@@ -2327,7 +2242,7 @@ def query(call):
             )
             bot.send_message(chat_id, text, parse_mode="Markdown")
 
-        elif call.data == 'adm_maint_control_menu' and chat_id == ADMIN_ID:
+        elif data == 'adm_maint_control_menu' and chat_id == ADMIN_ID:
             m_status = "مفعل 🛠️" if is_maintenance() else "معطل 🟢"
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
@@ -2338,11 +2253,11 @@ def query(call):
             )
             bot.edit_message_text("🛠️ **إدارة صيانة الأزرار والأقسام الشاملة:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data == 'adm_toggle_maint' and chat_id == ADMIN_ID:
+        elif data == 'adm_toggle_maint' and chat_id == ADMIN_ID:
             toggle_maintenance()
             bot.send_message(chat_id, f"✅ تم تبديل حالة صيانة البوت الكلي بنجاح.")
 
-        elif call.data == 'adm_maint_buttons_menu' and chat_id == ADMIN_ID:
+        elif data == 'adm_maint_buttons_menu' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=2)
             buttons_list = [
                 ('top_services', '🔥 الأكثر طلباً'),
@@ -2362,7 +2277,7 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='adm_maint_control_menu'))
             bot.edit_message_text("🔘 **صيانة أزرار البوت الرئيسية:**\nاضغط على الزر لتفعيل أو إلغاء الصيانة عنه:", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data == 'adm_maint_categories' and chat_id == ADMIN_ID:
+        elif data == 'adm_maint_categories' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             for cat_key, cat_name in CATEGORIES.items():
                 st = "🛠️ (صيانة)" if is_item_in_maintenance(cat_key) else "🟢 (شغال)"
@@ -2370,20 +2285,20 @@ def query(call):
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='adm_maint_control_menu'))
             bot.edit_message_text("📂 **صيانة الأقسام الرئيسية:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data == 'adm_maint_services_by_cat' and chat_id == ADMIN_ID:
+        elif data == 'adm_maint_services_by_cat' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
-                types.InlineKeyboardButton("📸 صيانة خدمات الانستغرام", callback_data='insta_menu'),
-                types.InlineKeyboardButton("✈️ صيانة خدمات التليجرام", callback_data='telegram_menu'),
-                types.InlineKeyboardButton("🎮 صيانة خدمات الألعاب", callback_data='games_menu'),
+                types.InlineKeyboardButton("📸 صيانة خدمات الانستغرام", callback_data='cat_insta'),
+                types.InlineKeyboardButton("✈️ صيانة خدمات التليجرام", callback_data='cat_telegram'),
+                types.InlineKeyboardButton("🎮 صيانة خدمات الألعاب", callback_data='cat_games'),
                 types.InlineKeyboardButton("🍎 صيانة بطاقات آيتونز", callback_data='cat_itunes'),
                 types.InlineKeyboardButton("📱 صيانة شرائح eSIM", callback_data='cat_esim'),
                 types.InlineKeyboardButton("🔙 رجوع", callback_data='adm_maint_control_menu')
             )
             bot.edit_message_text("🛠️ **اختر القسم الرئيسي:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif call.data.startswith('maint_group_opt_') and chat_id == ADMIN_ID:
-            opt_type = call.data.replace('maint_group_opt_', '')
+        elif data.startswith('maint_group_opt_') and chat_id == ADMIN_ID:
+            opt_type = data.replace('maint_group_opt_', '')
             keys_map = {
                 'tg_opt_fixed': ['tg_sub_fixed_1k', 'tg_sub_fixed_2k', 'tg_sub_fixed_5k'],
                 'tg_opt_20d': ['tg_sub_20d_1k', 'tg_sub_20d_2k', 'tg_sub_20d_5k'],
@@ -2404,48 +2319,48 @@ def query(call):
                             maintenance_items.remove(r_key)
                 bot.send_message(chat_id, f"✅ **تم تغيير حالة صيانة الفئة بنجاح!**")
 
-        elif call.data.startswith('toggle_maint_') and chat_id == ADMIN_ID:
-            item_key = call.data.replace('toggle_maint_', '')
+        elif data.startswith('toggle_maint_') and chat_id == ADMIN_ID:
+            item_key = data.replace('toggle_maint_', '')
             is_now_maint = toggle_item_maintenance(item_key)
             status_txt = "🛠️ (صيانة)" if is_now_maint else "🟢 (شغالة)"
             bot.send_message(chat_id, f"✅ تم تحديث حالة العنصر إلى: {status_txt}")
 
-        elif call.data in SERVICES:
-            data = SERVICES[call.data]
+        elif data in SERVICES:
+            srv_data_item = SERVICES[data]
             if chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''):
                 return
 
-            if is_item_in_maintenance(call.data) and chat_id != ADMIN_ID:
+            if is_item_in_maintenance(data) and chat_id != ADMIN_ID:
                 bot.send_message(chat_id, "🛠️ هذه الخدمة قيد الصيانة حالياً.")
                 return
 
-            srv_key = call.data
+            srv_key = data
 
-            if data.get('is_custom_tiers') and 'tiers' in data:
+            if srv_data_item.get('is_custom_tiers') and 'tiers' in srv_data_item:
                 markup = types.InlineKeyboardMarkup(row_width=2)
-                for t in data['tiers']:
+                for t in srv_data_item['tiers']:
                     t_qty = t['qty']
                     t_price = get_service_price(chat_id, t['price'])
                     btn_label = f"{t_qty} ({t_price} نقطة)"
                     markup.add(types.InlineKeyboardButton(btn_label, callback_data=f"buytier_{srv_key}_{t_qty}"))
                 
                 markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك (يدوي)", callback_data=f"custom_{srv_key}"))
-                markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=data.get('category', 'back_start')))
+                markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=srv_data_item.get('category', 'back_start')))
                 
-                text_menu = f"📦 **{data['name']}**\n━━━━━━━━━━━━━━━━━━━\n\nاختر الكمية المطلوبة من الأزرار أدناه أو أدخلها يدوياً:"
+                text_menu = f"📦 **{srv_data_item['name']}**\n━━━━━━━━━━━━━━━━━━━\n\nاختر الكمية المطلوبة من الأزرار أدناه أو أدخلها يدوياً:"
                 try:
                     bot.edit_message_text(text_menu, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
                 except Exception:
                     bot.send_message(chat_id, text_menu, reply_markup=markup, parse_mode="Markdown")
                 return
 
-            if data.get('category') in ['cat_itunes', 'cat_esim'] or data.get('service_id') == 0:
-                final_price = get_service_price(chat_id, data.get('price', 1.0))
+            if srv_data_item.get('category') in ['cat_itunes', 'cat_esim'] or srv_data_item.get('service_id') == 0:
+                final_price = get_service_price(chat_id, srv_data_item.get('price', 1.0))
                 
                 pending_orders_cache[chat_id] = {
                     'service_id': 0,
                     'qty': 1,
-                    'name': data['name'],
+                    'name': srv_data_item['name'],
                     'price': final_price,
                     'link': 'بطاقة رقمية / خدمة مباشرة'
                 }
@@ -2455,13 +2370,13 @@ def query(call):
                     types.InlineKeyboardButton("🛒 إضافة لسلة المشتريات", callback_data='add_to_cart_now'),
                     types.InlineKeyboardButton("✅ تأكيد الشراء الآن", callback_data='confirm_order_now'),
                     types.InlineKeyboardButton("❌ إلغاء الطلب", callback_data='cancel_order_now'),
-                    types.InlineKeyboardButton("🔙 رجوع", callback_data=data.get('category', 'back_start'))
+                    types.InlineKeyboardButton("🔙 رجوع", callback_data=srv_data_item.get('category', 'back_start'))
                 )
                 
                 text_confirm = (
                     f"🧾 **تأكيد ملخص الطلب:**\n"
                     f"━━━━━━━━━━━━━━━━━━━\n\n"
-                    f"📦 المنتج: {data['name']}\n"
+                    f"📦 المنتج: {srv_data_item['name']}\n"
                     f"💰 السعر النهائي: `{final_price}` نقطة"
                 )
                 
@@ -2471,33 +2386,33 @@ def query(call):
                     bot.send_message(chat_id, text_confirm, reply_markup=markup_confirm, parse_mode="Markdown")
                 return
 
-            base_price = float(data.get('price', 1.0))
+            base_price = float(srv_data_item.get('price', 1.0))
             final_price = get_service_price(chat_id, base_price)
-            api_qty = data.get('qty', 1000)
+            api_qty = srv_data_item.get('qty', 1000)
 
             text_req = (
-                f"📦 **{data['name']}**\n"
+                f"📦 **{srv_data_item['name']}**\n"
                 f"━━━━━━━━━━━━━━━━━━━\n\n"
-                f"🔗 {data.get('msg', 'أرسل الرابط المطلوب:')}\n"
+                f"🔗 {srv_data_item.get('msg', 'أرسل الرابط المطلوب:')}\n"
                 f"*(السعر: {final_price} نقطة)*"
             )
             
             markup_back = types.InlineKeyboardMarkup()
-            markup_back.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=data.get('category', 'back_start')))
+            markup_back.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=srv_data_item.get('category', 'back_start')))
             
             try:
                 bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
             except Exception:
                 bot.send_message(chat_id, text_req, reply_markup=markup_back, parse_mode="Markdown")
 
-            if data['service_id'] == 0:
-                bot.register_next_step_handler(call.message, prepare_order_summary_direct, final_price, data['name'])
+            if srv_data_item['service_id'] == 0:
+                bot.register_next_step_handler(call.message, prepare_order_summary_direct, final_price, srv_data_item['name'])
             else:
-                bot.register_next_step_handler(call.message, prepare_order_summary, final_price, data['service_id'], api_qty, data['name'])
+                bot.register_next_step_handler(call.message, prepare_order_summary, final_price, srv_data_item['service_id'], api_qty, srv_data_item['name'])
 
-        elif call.data.startswith('buytier_'):
+        elif data.startswith('buytier_'):
             try:
-                _, srv_key, qty_str = call.data.split('_', 2)
+                _, srv_key, qty_str = data.split('_', 2)
                 target_qty = int(qty_str)
                 if srv_key in SERVICES:
                     s_data = SERVICES[srv_key]
@@ -2515,8 +2430,8 @@ def query(call):
             except Exception as e:
                 print(f"Error in buytier handler: {e}")
 
-        elif call.data.startswith('buyqty_'):
-            parts = call.data.split('_')
+        elif data.startswith('buyqty_'):
+            parts = data.split('_')
             if len(parts) >= 3:
                 srv_key = parts[1]
                 qty = int(parts[2])
@@ -2538,7 +2453,7 @@ def query(call):
                     else:
                         bot.register_next_step_handler(call.message, prepare_order_summary, final_price, s_data['service_id'], qty, f"{s_data['name']} ({qty})")
 
-        elif call.data == 'confirm_order_now':
+        elif data == 'confirm_order_now':
             order_data = pending_orders_cache.get(chat_id)
             if not order_data:
                 bot.send_message(chat_id, "⚠️ انتهت جلسة الطلب، يرجى إعادة المحاولة.")
@@ -2577,7 +2492,7 @@ def query(call):
                 bot.send_message(chat_id, f"✅ **تم استلام طلبك بنجاح!**\n🆔 رقم الطلب: `{order_id}`\n📩 تواصل مع الدعم لاستلام الطلب: {SUPPORT_USER}", parse_mode="Markdown")
                 send_proof_to_channel(chat_id, order_id, order_data['name'], 1, link_info)
 
-        elif call.data == 'cancel_order_now':
+        elif data == 'cancel_order_now':
             if chat_id in pending_orders_cache:
                 del pending_orders_cache[chat_id]
             bot.send_message(chat_id, "❌ **تم إلغاء الطلب.**", parse_mode="Markdown")
