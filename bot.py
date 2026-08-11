@@ -31,7 +31,7 @@ API_KEY = os.environ.get("API_KEY", "Ig1FjwBweH3inDwnjLvv7Dt1ZzVRoKKNMF7QysS9UT0
 
 # تم ضبط الرابط والمفتاح بشكل صريح ومباشر لمنع أخطاء الاتصال أو الحفظ في Railway
 SUPABASE_URL = "https://iwkszjsggdddiaotlzrk.supabase.co"
-SUPABASE_KEY = "sb_secret_lHQndlKjzrTis6IaCjKvMQ_PxZNacyj"
+SUPABASE_KEY = "sb_secret_oX-E_LE69VDx-eA4YGYQ3A_Ugb0x_wz"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
