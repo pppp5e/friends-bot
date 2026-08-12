@@ -23,6 +23,10 @@ SUPPORT_USER = '@ppppp5e'
 PROOFS_CHANNEL = "@almohlgm"
 RECEIVER_PHONE = "07716465605"
 
+# إعدادات محفظة USDT (يمكنك استبدال العنوان وعنوان الشبكة بما يناسبك)
+USDT_WALLET_ADDRESS = "TYourUSDTWalletAddressHere..."  # ضع عنوان محفظتك TRC20 هنا
+USDT_TO_POINTS_RATE = 10  # كل 1 USDT يعادل كم نقطة؟
+
 CHANNELS = ["@almohlgm"]
 CHANNEL_LINKS = ["https://t.me/almohlgm"]
 
@@ -30,10 +34,9 @@ API_URL = "https://darkfollow.shop/api/v2"
 API_KEY = os.environ.get("API_KEY", "Ig1FjwBweH3inDwnjLvv7Dt1ZzVRoKKNMF7QysS9UT0sSINTUKmWYdohsm3U")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://iwkszjsggdddiaotlzrk.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")  # يسحب المفتاح بأمان من Railway
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
 
 user_click_tracker = {}
 pending_orders_cache = {}  
@@ -44,6 +47,7 @@ temp_add_service = {}
 admin_states = {}          
 user_recharge_states = {} 
 temp_recharge_phone_states = {} 
+usdt_recharge_states = {}
 
 PROFIT_MARGIN_USD = 0.5    
 try:
@@ -495,7 +499,6 @@ def notify_admin_new_user(user_id, first_name, username):
         safe_username = f"@{username}" if username and username != "لا يوجد" else "لا يوجد يوزر"
         safe_name = str(first_name).replace('[', '').replace(']', '').replace('*', '').replace('_', '')
         
-        # جلب العدد الكلي للمستخدمين من قاعدة البيانات
         total_users = 0
         try:
             res_u = supabase.table("users").select("user_id", count="exact", head=True).execute()
@@ -668,6 +671,7 @@ def send_proof_to_channel(user_id, order_id, service_name, quantity=1, api_id="�
             f"👑 **عملية شراء جديدة بنجاح!**\n"
             f"━━━━━━━━━━━━━━━━━━━\n\n"
             f"🆔 **رقم الطلب:** `{order_id}`\n"
+            f"{api_info}"
             f"👤 **الزبون:** `{hidden_id}`\n"
             f"📦 **الخدمة / المنتج:** {service_name}\n"
             f"{qty_info}"
@@ -821,6 +825,9 @@ def main_menu(chat_id, message_id=None):
     )
     markup.add(
         types.InlineKeyboardButton("💰 شحن رصيد آسياسيل (تلقائي)", callback_data="asiacell_recharge_menu"),
+        types.InlineKeyboardButton("🪙 شحن رصيد عبر USDT", callback_data="usdt_recharge_menu")
+    )
+    markup.add(
         types.InlineKeyboardButton("👨‍💻 الدعم الفني", url=SUPPORT_LINK)
     )
     
@@ -936,8 +943,41 @@ def query(call):
                 bot.edit_message_text("🛠️ **إدارة صيانة الأزرار والأقسام الشاملة:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
                 return
 
+            # معالجة قبول شحن USDT من الأدمن
+            elif data.startswith('accept_usdt_'):
+                target_uid = int(data.replace('accept_usdt_', ''))
+                points_to_add = usdt_recharge_states.get(target_uid, {}).get('points', USDT_TO_POINTS_RATE)
+                
+                update_points(target_uid, points_to_add, is_recharge=True)
+                
+                try:
+                    bot.send_message(target_uid, f"🎉 **تم قبول تحويل الـ USDT بنجاح!**\n⭐ تمت إضافة `{points_to_add}` نقطة إلى رصيدك ⚡", parse_mode="Markdown")
+                except Exception:
+                    pass
+                
+                bot.answer_callback_query(call.id, "✅ تم قبول الطلب وإضافة النقاط للزبون بنجاح!", show_alert=True)
+                try:
+                    bot.edit_message_text(call.message.text + "\n\n✅ **[تم القبول وإضافة النقاط بنجاح]**", chat_id, message_id)
+                except Exception:
+                    pass
+                return
+
+            # معالجة رفض شحن USDT من الأدمن
+            elif data.startswith('reject_usdt_'):
+                target_uid = int(data.replace('reject_usdt_', ''))
+                try:
+                    bot.send_message(target_uid, "❌ **عذراً، تم رفض طلب شحن الـ USDT الخاص بك من قبل الإدارة لعدم صحة التفاصيل أو عدم وصول التحويل.**", parse_mode="Markdown")
+                except Exception:
+                    pass
+                bot.answer_callback_query(call.id, "❌ تم رفض الطلب.", show_alert=True)
+                try:
+                    bot.edit_message_text(call.message.text + "\n\n❌ **[تم الرفض]**", chat_id, message_id)
+                except Exception:
+                    pass
+                return
+
         # ==========================================
-        # معالج الحذف الموحد والمنظم الجديد (بدون أي تكرار)
+        # معالج الحذف الموحد والمنظم الجديد
         # ==========================================
         if (data.startswith('delsrv_') or data.startswith('delgroup_') or data.startswith('delcat_')) and chat_id == ADMIN_ID:
             is_cat_del = data.startswith('delcat_')
@@ -949,7 +989,6 @@ def query(call):
                 pass
 
             try:
-                # 1. حالة حذف القسم بالكامل
                 if is_cat_del:
                     cat_to_del = data.replace('delcat_', '', 1).strip()
                     if cat_to_del in CATEGORIES:
@@ -989,7 +1028,6 @@ def query(call):
                         bot.answer_callback_query(call.id, "❌ لم يتم الحذف: القسم غير موجود أو تم حذفه مسبقاً!", show_alert=True)
                         return
 
-                # 2. حالة حذف الخدمة الفردية أو المجموعات بدقة تامة
                 keys_to_delete = []
                 cat_key = 'cat_insta'
 
@@ -1024,7 +1062,6 @@ def query(call):
                                 if srv_base_name.strip() == target_base_name:
                                     keys_to_delete.append(srv_key)
 
-                # بحث احتياطي إذا لم يُطابق بدقة
                 if not keys_to_delete:
                     for srv_key, srv_data in list(SERVICES.items()):
                         if data in srv_key or srv_key in data:
@@ -1035,7 +1072,6 @@ def query(call):
                     bot.answer_callback_query(call.id, "❌ لم يتم الحذف: هذه الخدمة غير موجودة أو تم حذفها مسبقاً!", show_alert=True)
                     return
 
-                # تنفيذ الحذف الفعلي من الذاكرة وقاعدة البيانات
                 for sk in keys_to_delete:
                     if sk in SERVICES:
                         cat_key = SERVICES[sk].get('category', 'cat_insta')
@@ -1056,7 +1092,6 @@ def query(call):
                 except Exception as set_err:
                     print(f"Settings Error: {set_err}")
 
-                # إعادة بناء أزرار القسم المحدثة
                 markup = types.InlineKeyboardMarkup(row_width=1)
                 cat_services = {k: v for k, v in SERVICES.items() if v.get('category') == cat_key}
                 cat_name = CATEGORIES.get(cat_key, "القسم")
@@ -1114,6 +1149,36 @@ def query(call):
                 return
             main_menu(chat_id, message_id)
             return
+
+        # ==========================================
+        # واجهة شحن الـ USDT الجديدة كلياً
+        # ==========================================
+        elif data == 'usdt_recharge_menu':
+            if is_item_in_maintenance('usdt_recharge_menu') and chat_id != ADMIN_ID:
+                bot.send_message(chat_id, "🛠️ خدمة شحن USDT قيد الصيانة حالياً.")
+                return
+            
+            markup = types.InlineKeyboardMarkup(row_width=1)
+            markup.add(
+                types.InlineKeyboardButton("📤 إرسال إشعار تحويل USDT", callback_data="submit_usdt_proof"),
+                types.InlineKeyboardButton("🔙 رجوع للقائمة الرئيسية", callback_data='start')
+            )
+            
+            text_usdt = (
+                f"🪙 **شحن الرصيد عبر العملات الرقمية (USDT - TRC20):**\n"
+                f"━━━━━━━━━━━━━━━━━━━\n\n"
+                f"📌 قم بتحويل المبلغ المطلوب إلى محفظتنا على شبكة ترون (TRC20):\n\n"
+                f"`{USDT_WALLET_ADDRESS}`\n\n"
+                f"💡 **معدل التحويل:** كل `1 USDT` = `{USDT_TO_POINTS_RATE}` نقاط.\n"
+                f"بعد إتمام التحويل، اضغط على زر (إرسال إشعار تحويل) وأرسل رقم العملية (TxID) أو تفاصيل التحويل للإدارة."
+            )
+            bot.edit_message_text(text_usdt, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
+
+        elif data == 'submit_usdt_proof':
+            markup_back = types.InlineKeyboardMarkup()
+            markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='usdt_recharge_menu'))
+            msg = bot.send_message(chat_id, "📝 **أرسل الآن (رقم عملية التحويل TxID) والمبلغ المحول ليتم مراجعته من قبل الإدارة:**", parse_mode="Markdown", reply_markup=markup_back)
+            bot.register_next_step_handler(msg, process_usdt_proof_input)
 
         elif data == 'cat_insta':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
@@ -2150,6 +2215,7 @@ def query(call):
                 ('daily_reward', '🎁 مكافأة يومية'),
                 ('my_orders', '📦 طلباتي والتتبع'),
                 ('asiacell_recharge_menu', '💰 شحن آسياسيل'),
+                ('usdt_recharge_menu', '🪙 شحن USDT'),
                 ('support_btn', '👨‍💻 الدعم الفني')
             ]
             for btn_key, btn_name in buttons_list:
@@ -2217,8 +2283,11 @@ def query(call):
 
             srv_key = data
 
-            # فحص مرن ومباشر للتيرات لضمان ظهور الأزرار مع الخيار اليدوي
+            # فحص التيرات المباشر لضمان ظهور الأزرار مع الخيار اليدوي
             tiers_data = srv_data_item.get('tiers')
+            if not tiers_data and 'tiers' in srv_data_item:
+                tiers_data = srv_data_item['tiers']
+
             if tiers_data and isinstance(tiers_data, list) and len(tiers_data) > 0:
                 markup = types.InlineKeyboardMarkup(row_width=2)
                 for t in tiers_data:
@@ -2227,7 +2296,6 @@ def query(call):
                     btn_label = f"{t_qty} ({t_price} نقطة)"
                     markup.add(types.InlineKeyboardButton(btn_label, callback_data=f"buytier_{srv_key}_{t_qty}"))
                 
-                # زر إدخال الكمية يدوياً بجانب التيرات
                 markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك (يدوي)", callback_data=f"custom_{srv_key}"))
                 markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=srv_data_item.get('category', 'back_start')))
                 
@@ -2237,7 +2305,6 @@ def query(call):
                 except Exception:
                     bot.send_message(chat_id, text_menu, reply_markup=markup, parse_mode="Markdown")
                 return
-
 
             if srv_data_item.get('category') in ['cat_itunes', 'cat_esim'] or srv_data_item.get('service_id') == 0:
                 final_price = get_service_price(chat_id, srv_data_item.get('price', 1.0))
@@ -2550,6 +2617,40 @@ def process_asiacell_phone_input(message):
         reply_markup=markup
     )
 
+# دالة معالجة إرسال إثبات تحويل USDT
+def process_usdt_proof_input(message):
+    chat_id = message.chat.id
+    proof_text = message.text.strip()
+    username = message.from_user.username or "لا يوجد"
+
+    if proof_text.startswith('/'):
+        return
+
+    # حفظ النقاط المستحقة مؤقتاً (مثلاً 10 نقاط أو افتراضي لكل عملية)
+    usdt_recharge_states[chat_id] = {'points': USDT_TO_POINTS_RATE}
+
+    markup_admin = types.InlineKeyboardMarkup(row_width=2)
+    markup_admin.add(
+        types.InlineKeyboardButton("✅ قبول وإضافة النقاط", callback_data=f"accept_usdt_{chat_id}"),
+        types.InlineKeyboardButton("❌ رفض الطلب", callback_data=f"reject_usdt_{chat_id}")
+    )
+
+    admin_msg = (
+        f"🪙 **طلب شحن USDT جديد بانتظار التأكيد!**\n"
+        f"━━━━━━━━━━━━━━━━━━━\n\n"
+        f"👤 الآيدي: `{chat_id}`\n"
+        f"👤 اليوزر: @{username}\n"
+        f"📄 تفاصيل العملية / TxID:\n`{proof_text}`"
+    )
+    
+    try:
+        bot.send_message(ADMIN_ID, admin_msg, parse_mode="Markdown", reply_markup=markup_admin)
+    except Exception as e:
+        print(f"Error notifying admin about USDT: {e}")
+
+    bot.send_message(chat_id, "✅ **تم إرسال إشعار التحويل إلى الإدارة بنجاح!**\nسيتم مراجعة العملية وإضافة النقاط إلى رصيدك بأقرب وقت ⏳", parse_mode="Markdown")
+    main_menu(chat_id)
+
 @bot.message_handler(func=lambda message: message.chat.id == ADMIN_ID and message.text and not message.text.startswith('/'))
 def handle_incoming_sms_forward(message):
     text = message.text.strip()
@@ -2578,11 +2679,6 @@ def handle_incoming_sms_forward(message):
             break
 
     if not transfer_amount_k or not sender_phone_in_sms:
-        bot.send_message(
-            ADMIN_ID, 
-            f"⚠️ **[تنبيه تحليل] لم يتم التعرف على الرقم أو المبلغ بدقة:**\n\n📄 **النص الوارد:**\n`{text}`", 
-            parse_mode="Markdown"
-        )
         return
 
     matched_user_id = None
@@ -2609,15 +2705,6 @@ def handle_incoming_sms_forward(message):
         bot.send_message(
             ADMIN_ID, 
             f"✅ **تمت المطابقة وإضافة النقاط بنجاح للزبون:** `{matched_user_id}`\n💰 المبلغ: `{transfer_amount_k} ألف`", 
-            parse_mode="Markdown"
-        )
-    else:
-        bot.send_message(
-            ADMIN_ID, 
-            f"⚠️ **[كشف خطأ] رقم الهاتف أو المبلغ غير مطابق لجلسة مفتوحة**\n\n"
-            f"📱 **الرقم المستخرج:** `{sender_phone_in_sms}`\n"
-            f"💰 **المبلغ المستخرج:** `{transfer_amount_k} ألف`\n"
-            f"📄 **النص الوارد:**\n`{text}`", 
             parse_mode="Markdown"
         )
 
