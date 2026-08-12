@@ -502,14 +502,23 @@ def notify_admin_new_user(user_id, first_name, username):
         safe_username = f"@{username}" if username and username != "لا يوجد" else "لا يوجد يوزر"
         safe_name = str(first_name).replace('[', '').replace(']', '').replace('*', '').replace('_', '')
         
+        # جلب العدد الكلي للمستخدمين من قاعدة البيانات
+        total_users = 0
+        try:
+            res_u = supabase.table("users").select("user_id", count="exact", head=True).execute()
+            total_users = res_u.count if res_u.count is not None else 0
+        except Exception:
+            pass
+
         text = (
             f"👤 عضو جديد دخل البوت لأول مرة!\n"
             f"━━━━━━━━━━━━━━━━━━━\n\n"
             f"🔹 الاسم: {safe_name}\n"
             f"🔹 اليوزر: {safe_username}\n"
-            f"🔹 الآيدي (ID): {user_id}"
+            f"🔹 الآيدي (ID): {user_id}\n"
+            f"👥 إجمالي المشتركين بالبوت: `{total_users}` عضو"
         )
-        bot.send_message(ADMIN_ID, text)
+        bot.send_message(ADMIN_ID, text, parse_mode="Markdown")
     except Exception as e:
         print(f"❌ Failed to send admin notification: {e}")
 
