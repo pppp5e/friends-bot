@@ -2217,14 +2217,17 @@ def query(call):
 
             srv_key = data
 
-            if srv_data_item.get('is_custom_tiers') and 'tiers' in srv_data_item:
+            # فحص مرن ومباشر للتيرات لضمان ظهور الأزرار مع الخيار اليدوي
+            tiers_data = srv_data_item.get('tiers')
+            if tiers_data and isinstance(tiers_data, list) and len(tiers_data) > 0:
                 markup = types.InlineKeyboardMarkup(row_width=2)
-                for t in srv_data_item['tiers']:
-                    t_qty = t['qty']
-                    t_price = get_service_price(chat_id, t['price'])
+                for t in tiers_data:
+                    t_qty = t.get('qty', 1000)
+                    t_price = get_service_price(chat_id, t.get('price', 1.0))
                     btn_label = f"{t_qty} ({t_price} نقطة)"
                     markup.add(types.InlineKeyboardButton(btn_label, callback_data=f"buytier_{srv_key}_{t_qty}"))
                 
+                # زر إدخال الكمية يدوياً بجانب التيرات
                 markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك (يدوي)", callback_data=f"custom_{srv_key}"))
                 markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=srv_data_item.get('category', 'back_start')))
                 
@@ -2234,6 +2237,7 @@ def query(call):
                 except Exception:
                     bot.send_message(chat_id, text_menu, reply_markup=markup, parse_mode="Markdown")
                 return
+
 
             if srv_data_item.get('category') in ['cat_itunes', 'cat_esim'] or srv_data_item.get('service_id') == 0:
                 final_price = get_service_price(chat_id, srv_data_item.get('price', 1.0))
