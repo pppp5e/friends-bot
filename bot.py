@@ -329,13 +329,6 @@ SERVICES = {
     'flash_fol_2k': {'name': 'فلاش متابعين 2k', 'btn_label': '2k', 'price': 4.0, 'cost': 2.0, 'service_id': 2051, 'qty': 2000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
     'flash_fol_5k': {'name': 'فلاش متابعين 5k', 'btn_label': '5k', 'price': 12.0, 'cost': 6.0, 'service_id': 2051, 'qty': 5000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
 
-    'buy_fol_1k': {'name': 'متابعين 1k', 'btn_label': '1k', 'price': 1.5, 'cost': 0.8, 'service_id': 1961, 'qty': 1100, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
-    'buy_fol_2k': {'name': 'متابعين 2k', 'btn_label': '2k', 'price': 3.0, 'cost': 1.6, 'service_id': 1961, 'qty': 2200, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
-    'buy_fol_3k': {'name': 'متابعين 3k', 'btn_label': '3k', 'price': 4.5, 'cost': 2.4, 'service_id': 1961, 'qty': 3300, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
-    'buy_fol_4k': {'name': 'متابعين 4k', 'btn_label': '4k', 'price': 6.0, 'cost': 3.2, 'service_id': 1961, 'qty': 4400, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
-    'buy_fol_5k': {'name': 'متابعين 5k', 'btn_label': '5k', 'price': 7.5, 'cost': 4.0, 'service_id': 1961, 'qty': 5500, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
-    'buy_fol_10k': {'name': 'متابعين 10k', 'btn_label': '10k', 'price': 15.0, 'cost': 8.0, 'service_id': 1961, 'qty': 11000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
-
     'dragon_fol_1k': {'name': 'دراجون متابعين 1k', 'btn_label': '1k', 'price': 1.5, 'cost': 0.7, 'service_id': 1548, 'qty': 1000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
     'dragon_fol_2k': {'name': 'دراجون متابعين 2k', 'btn_label': '2k', 'price': 3.0, 'cost': 1.4, 'service_id': 1548, 'qty': 2000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
     'dragon_fol_5k': {'name': 'دراجون متابعين 5k', 'btn_label': '5k', 'price': 7.0, 'cost': 3.5, 'service_id': 1548, 'qty': 5000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
@@ -675,7 +668,6 @@ def send_proof_to_channel(user_id, order_id, service_name, quantity=1, api_id="�
             f"👑 **عملية شراء جديدة بنجاح!**\n"
             f"━━━━━━━━━━━━━━━━━━━\n\n"
             f"🆔 **رقم الطلب:** `{order_id}`\n"
-            f"{api_info}"
             f"👤 **الزبون:** `{hidden_id}`\n"
             f"📦 **الخدمة / المنتج:** {service_name}\n"
             f"{qty_info}"
@@ -1438,7 +1430,6 @@ def query(call):
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
                 types.InlineKeyboardButton("⚡ فلاش متابعين انستغرام الأسرع في العالم", callback_data='open_flash_fol'),
-                types.InlineKeyboardButton("💎 لاو متابعين انستغرام ضمان 90 يوم", callback_data='insta_fol_menu'),
                 types.InlineKeyboardButton("🐉 دراجون متابعين انستا تحديث جديد", callback_data='open_dragon_fol'),
                 types.InlineKeyboardButton("🔙 رجوع", callback_data=back_target)
             )
