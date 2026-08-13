@@ -1452,7 +1452,7 @@ def query(call):
             markup = types.InlineKeyboardMarkup(row_width=1)
             
             for k, v in SERVICES.items():
-                if v.get('category') == 'cat_insta' and v.get('subcat'] == 'fol':
+                if v.get('category') == 'cat_insta' and v.get('subcat') == 'fol':
                     s_name = v.get('name', 'خدمة')
                     s_price = v.get('price', 0)
                     if is_adm_maint:
