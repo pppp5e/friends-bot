@@ -3056,8 +3056,15 @@ def handle_commands(message):
         is_card_code = param and param.startswith('CARD-')
         referrer_id = param if param and not is_card_code and param != str(chat_id) and param.isdigit() else None
 
+        # 1. تسجيل المستخدم أولاً
         register_user_if_new(chat_id, message.from_user.first_name, message.from_user.username, referrer_id)
 
+        # 2. إذا دخل المستخدم عبر رابط كود شحن، قم بشحنه فوراً ولا تقاطعه باشتراك إجباري لكي لا يضيع الكود
+        if is_card_code:
+            process_user_redeem_code(chat_id, param)
+            return
+
+        # 3. فحص القنوات الإلزامية للمستخدمين العاديين
         if chat_id != ADMIN_ID:
             try:
                 if not check_sub(chat_id):
@@ -3070,10 +3077,6 @@ def handle_commands(message):
             except Exception:
                 pass
 
-        if is_card_code:
-            process_user_redeem_code(chat_id, param)
-            return
-
         main_menu(chat_id)
 
     elif text.startswith('/redeem'):
@@ -3083,6 +3086,7 @@ def handle_commands(message):
 
     elif text.startswith('/admin') and chat_id == ADMIN_ID:
         admin_panel_shortcut(chat_id)
+
 
 if __name__ == "__main__":
     print("🚀 Bot running successfully!")
