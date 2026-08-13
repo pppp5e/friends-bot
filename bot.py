@@ -998,7 +998,7 @@ def query(call):
                     cat_to_del = data.replace('delcat_', '', 1).strip()
                     if cat_to_del in CATEGORIES:
                         cat_name = CATEGORIES[cat_to_del]
-                        keys_to_del = [k for k, v in SERVICES.items() if v.get('category'] == cat_to_del]
+                        keys_to_del = [k for k, v in SERVICES.items() if v.get('category') == cat_to_del]
 
                         for k in keys_to_del:
                             if k in SERVICES:
