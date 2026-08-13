@@ -430,8 +430,6 @@ def load_custom_services_from_db():
                         "key": "custom_services_list",
                         "val_text": json.dumps(updated_saved_dict, ensure_ascii=False) if updated_saved_dict else ""
                     }, on_conflict="key").execute()
-
-                print(f"✅ Loaded {len(updated_saved_dict)} custom services from database (Filtered).")
     except Exception as e:
         print(f"Error loading custom services: {e}")
 
@@ -444,27 +442,6 @@ CATEGORIES = {
     'cat_itunes': 'قسم آيتونز 🍎',
     'cat_esim': 'قسم شرائح eSIM 📱'
 }
-
-try:
-    res_del_cats = supabase.table("deleted_categories").select("cat_key").execute()
-    if res_del_cats.data:
-        for row in res_del_cats.data:
-            bc = row.get('cat_key')
-            if bc in CATEGORIES:
-                del CATEGORIES[bc]
-except Exception as e:
-    print(f"Error loading deleted categories from table: {e}")
-
-try:
-    res_del_srvs = supabase.table("deleted_services").select("srv_key").execute()
-    if res_del_srvs.data:
-        for row in res_del_srvs.data:
-            b_srv = row.get('srv_key')
-            if b_srv in SERVICES:
-                del SERVICES[b_srv]
-        print(f"✅ تم فلترة {len(res_del_srvs.data)} خدمة محذوفة مسبقاً من الذاكرة.")
-except Exception as e:
-    print(f"Error loading deleted services from table: {e}")
 
 def admin_panel_shortcut(chat_id, message_id=None):
     m_status = "مفعل 🛠️" if is_maintenance() else "معطل 🟢"
@@ -516,69 +493,12 @@ def notify_admin_new_user(user_id, first_name, username):
     except Exception as e:
         print(f"❌ Failed to send admin notification: {e}")
 
-def prepare_order_summary_direct(message, base_price, data_name):
-    chat_id = message.chat.id
-    raw_text = message.text or ""
-    
-    pending_orders_cache[chat_id] = {
-        'service_id': 0,
-        'qty': 1,
-        'name': data_name,
-        'price': base_price,
-        'link': raw_text.strip()
-    }
-    send_order_confirmation_screen(chat_id)
-
-def prepare_order_summary(message, base_price, service_id, quantity, data_name):
-    chat_id = message.chat.id
-    raw_text = message.text or ""
-    
-    service_cat = 'cat_insta'
-    for k, v in SERVICES.items():
-        if v.get('service_id') == service_id:
-            service_cat = v.get('category', 'cat_insta')
-            break
-            
-    is_valid, err_msg = validate_service_link(service_cat, raw_text)
-    if not is_valid:
-        bot.send_message(chat_id, err_msg)
-        return
-
-    urls = re.findall(r'https?://[^\s\)\],]+', raw_text)
-    clean_link = urls[0].split('?')[0] if urls else raw_text.strip()
-
-    pending_orders_cache[chat_id] = {
-        'service_id': service_id,
-        'qty': quantity,
-        'name': data_name,
-        'price': base_price,
-        'link': clean_link
-    }
-    send_order_confirmation_screen(chat_id)
-
-def send_order_confirmation_screen(chat_id):
-    order_data = pending_orders_cache.get(chat_id)
-    if not order_data:
-        return
-    markup_confirm = types.InlineKeyboardMarkup(row_width=1)
-    markup_confirm.add(
-        types.InlineKeyboardButton("🛒 إضافة لسلة المشتريات", callback_data='add_to_cart_now'),
-        types.InlineKeyboardButton("✅ تأكيد الشراء الآن", callback_data='confirm_order_now'),
-        types.InlineKeyboardButton("❌ إلغاء الطلب", callback_data='cancel_order_now')
-    )
-    text_confirm = (
-        f"🧾 **تأكيد ملخص الطلب:**\n"
-        f"━━━━━━━━━━━━━━━━━━━\n\n"
-        f"📦 المنتج: {order_data['name']}\n"
-        f"🔗 التفاصيل/الرابط: `{order_data['link']}`\n"
-        f"💰 السعر النهائي: `{order_data['price']}` نقطة"
-    )
-    bot.send_message(chat_id, text_confirm, reply_markup=markup_confirm, parse_mode="Markdown")
-
-def prepare_order_summary_with_api_qty(message, base_price, service_id, quantity, data_name):
-    prepare_order_summary(message, base_price, service_id, quantity, data_name)
+# ==========================================
+# 🔄 دوال التسجيل وشحن الكروت (مُعاد بناؤها بالكامل)
+# ==========================================
 
 def register_user_if_new(user_id, first_name, username, referrer_id=None):
+    """دالة تسجيل المستخدم الجديد أو تحديث بياناته مع نظام الإحالة بدقة تامة"""
     try:
         u = get_user(user_id)
         safe_username = username if username else "لا يوجد"
@@ -589,6 +509,7 @@ def register_user_if_new(user_id, first_name, username, referrer_id=None):
 
             initial_points = 0.0
             clean_referrer = None
+            
             if referrer_id and str(referrer_id).isdigit():
                 clean_referrer = int(referrer_id)
                 if clean_referrer != user_id:
@@ -632,16 +553,59 @@ def register_user_if_new(user_id, first_name, username, referrer_id=None):
                         print(f"Failed to notify referrer: {e}")
             return True
         else:
-            try:
-                supabase.table("users").update({
-                    "first_name": safe_name,
-                    "username": safe_username
-                }).eq("user_id", user_id).execute()
-            except Exception:
-                pass
+            supabase.table("users").update({
+                "first_name": safe_name,
+                "username": safe_username
+            }).eq("user_id", user_id).execute()
     except Exception as e:
         print(f"Register user exception: {e}")
     return False
+
+def process_user_redeem_code(chat_id, raw_code):
+    """دالة معالجة شحن الكروت وأكواد الهدية بشكل آمن وفوري"""
+    code = raw_code.strip().upper()
+    
+    res_voucher = supabase.table("vouchers").select("*").eq("code", code).execute()
+    if res_voucher.data:
+        amt = float(res_voucher.data[0]['amount'])
+        update_points(chat_id, amt, is_recharge=True)
+        supabase.table("vouchers").delete().eq("code", code).execute()
+        bot.send_message(chat_id, f"🎉 **تم شحن الكود بنجاح!**\n💰 تمت إضافة `{amt}` نقطة إلى رصيدك ⚡", parse_mode="Markdown")
+        main_menu(chat_id)
+        return True
+
+    res_gift = supabase.table("gift_codes").select("*").eq("code", code).execute()
+    if res_gift.data:
+        g = res_gift.data[0]
+        used_cnt = int(g.get('used_count', 0))
+        max_u = int(g.get('max_uses', 1))
+        
+        if used_cnt >= max_u:
+            bot.send_message(chat_id, "❌ **عذراً، انتهت كمية استخدام هذا الكود!**", parse_mode="Markdown")
+            main_menu(chat_id)
+            return False
+            
+        res_used = supabase.table("gift_claims").select("*").eq("code", code).eq("user_id", chat_id).execute()
+        if res_used.data:
+            bot.send_message(chat_id, "⚠️ **لقد قمت باستخدام هذا الكود مسبقاً ولا يمكنك استخدامه مرة أخرى!**", parse_mode="Markdown")
+            main_menu(chat_id)
+            return False
+
+        amt = float(g['points'])
+        update_points(chat_id, amt, is_recharge=True)
+        
+        supabase.table("gift_codes").update({"used_count": used_cnt + 1}).eq("code", code).execute()
+        supabase.table("gift_claims").insert({"code": code, "user_id": chat_id}).execute()
+        
+        bot.send_message(chat_id, f"🎉 **مبروك! تم استبدال الكود بنجاح.**\n💰 تمت إضافة `{amt}` نقطة إلى رصيدك ⚡", parse_mode="Markdown")
+        main_menu(chat_id)
+        return True
+
+    bot.send_message(chat_id, "❌ **الكود المدخل غير صحيح أو انتهت صلاحيته!**", parse_mode="Markdown")
+    main_menu(chat_id)
+    return False
+
+# ==========================================
 
 def check_sub(user_id):
     for ch in CHANNELS:
@@ -1488,7 +1452,7 @@ def query(call):
             markup = types.InlineKeyboardMarkup(row_width=1)
             
             for k, v in SERVICES.items():
-                if v.get('category') == 'cat_insta' and v.get('subcat') == 'fol':
+                if v.get('category') == 'cat_insta' and v.get('subcat'] == 'fol':
                     s_name = v.get('name', 'خدمة')
                     s_price = v.get('price', 0)
                     if is_adm_maint:
@@ -1818,7 +1782,7 @@ def query(call):
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='start'))
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
-            bot.register_next_step_handler(call.message, process_user_redeem_input)
+            bot.register_next_step_handler(call.message, lambda m: process_user_redeem_code(m.chat.id, m.text))
 
         elif data == 'admin_panel' and chat_id == ADMIN_ID:
             admin_panel_shortcut(chat_id, message_id)
@@ -2305,7 +2269,7 @@ def query(call):
                 'tg_opt_vip_30d': ['tg_vip_30d_1k', 'tg_vip_30d_2k', 'tg_vip_30d_5k'],
                 'tg_opt_bot_start': ['tg_bot_start_1k', 'tg_bot_start_2k', 'tg_bot_start_5k'],
                 'tg_opt_no_drop': ['tg_vip_no_drop_1k', 'tg_vip_no_drop_2k', 'tg_vip_no_drop_5k'],
-                'tg_opt_boost': ['tg_boost_1d_1k', 'tg_boost_1d_2k', 'tg_boost_1d_5k']
+                'tg_boost_opt': ['tg_boost_1d_1k', 'tg_boost_1d_2k', 'tg_boost_1d_5k']
             }
             if opt_type in keys_map:
                 group_keys = keys_map[opt_type]
@@ -2480,7 +2444,6 @@ def query(call):
                     username = call.from_user.username or "غير معروف"
                     order_id = get_next_order_id()
                     api_id = res['order']
-                    # تم إصلاح حفظ طلبات الـ API في سوبابيس هنا
                     save_order(order_id, chat_id, username, order_data['name'], final_price, api_id, order_data['link'], order_data['service_id'], order_data['qty'])
                     bot.send_message(chat_id, f"✅ **تم إرسال طلبك بنجاح!**\n🆔 رقم الطلب: `{order_id}`\n🔖 رقم الـ API: `{api_id}`", parse_mode="Markdown")
                     send_proof_to_channel(chat_id, order_id, order_data['name'], order_data['qty'], api_id)
@@ -2492,7 +2455,6 @@ def query(call):
                 order_id = get_next_order_id()
                 username = call.from_user.username or "لا يوجد"
                 link_info = order_data.get('link', 'خدمة مباشرة')
-                # تم إصلاح حفظ الطلبات اليدوية والبطاقات هنا أيضاً
                 save_order(order_id, chat_id, username, order_data['name'], final_price, "0", link_info, 0, 1)
                 bot.send_message(ADMIN_ID, f"📦 **طلب جديد (يدوي/لعبة):**\n🆔 رقم الطلب: `{order_id}`\n👤 المستخدم: `{chat_id}` (@{username})\n📦 الخدمة: {order_data['name']}\n🎮 التفاصيل: `{link_info}`", parse_mode="Markdown")
                 bot.send_message(chat_id, f"✅ **تم استلام طلبك بنجاح!**\n🆔 رقم الطلب: `{order_id}`\n📩 تواصل مع الدعم لاستلام الطلب: {SUPPORT_USER}", parse_mode="Markdown")
@@ -3013,43 +2975,9 @@ def process_transfer_amount(message):
     except ValueError:
         bot.send_message(chat_id, "⚠️ أدخل أرقاماً صحيحة فقط.")
 
-def process_user_redeem_input(message):
-    chat_id = message.chat.id
-    raw_code = message.text.strip().upper()
-    
-    res = supabase.table("vouchers").select("amount").eq("code", raw_code).execute()
-    if res.data:
-        amt = res.data[0]['amount']
-        update_points(chat_id, amt, is_recharge=True)
-        supabase.table("vouchers").delete().eq("code", raw_code).execute()
-        bot.send_message(chat_id, f"🎉 **تم شحن {amt} نقطة برصيدك بنجاح!**", parse_mode="Markdown")
-        return
-
-    res_gift = supabase.table("gift_codes").select("*").eq("code", raw_code).execute()
-    if res_gift.data:
-        g = res_gift.data[0]
-        used_cnt = g.get('used_count', 0)
-        max_u = g.get('max_uses', 1)
-        
-        if used_cnt >= max_u:
-            bot.send_message(chat_id, "❌ **انتهت كمية استخدام هذا الكود!**", parse_mode="Markdown")
-            return
-            
-        res_used = supabase.table("gift_claims").select("*").eq("code", raw_code).eq("user_id", chat_id).execute()
-        if res_used.data:
-            bot.send_message(chat_id, "⚠️ **لقد قمت باستخدام هذا الكود مسبقاً!**", parse_mode="Markdown")
-            return
-
-        amt = float(g['points'])
-        update_points(chat_id, amt, is_recharge=True)
-        supabase.table("gift_codes").update({"used_count": used_cnt + 1}).eq("code", raw_code).execute()
-        supabase.table("gift_claims").insert({"code": raw_code, "user_id": chat_id}).execute()
-        
-        bot.send_message(chat_id, f"🎉 **مبروك! تم استبدال الكود وحصلت على ({amt}) نقطة بنجاح!**", parse_mode="Markdown")
-        return
-
-    bot.send_message(chat_id, "❌ الكود غير صحيح أو انتهت صلاحيته.")
-
+# ==========================================
+# 🚀 المعالج الأساسي للأوامر (معالجة دقيقة للرابط والكود والتسجيل)
+# ==========================================
 @bot.message_handler(commands=['start', 'redeem', 'admin'])
 def handle_commands(message):
     chat_id = message.chat.id
@@ -3062,16 +2990,13 @@ def handle_commands(message):
         args = text.split()
         param = args[1] if len(args) > 1 else None
         
-        # التأكد من تسجيل المستخدم أولاً قبل شحن الكود عبر الرابط
-        register_user_if_new(chat_id, message.from_user.first_name, message.from_user.username, param if param and not param.startswith('CARD-') else None)
+        is_card_code = param and param.startswith('CARD-')
+        referrer_id = param if param and not is_card_code and param != str(chat_id) and param.isdigit() else None
 
-        if param and param.startswith('CARD-'):
-            message.text = param
-            process_user_redeem_input(message)
-            return
+        # تسجيل المستخدم أولاً
+        register_user_if_new(chat_id, message.from_user.first_name, message.from_user.username, referrer_id)
 
-        referrer_id = param if param and param != str(chat_id) and param.isdigit() else None
-        
+        # فحص القنوات الإلزامية أولاً قبل تفعيل الكود أو الدخول (للأدمن مستثنى)
         if chat_id != ADMIN_ID:
             try:
                 if not check_sub(chat_id):
@@ -3079,18 +3004,22 @@ def handle_commands(message):
                     for i in range(len(CHANNELS)):
                         markup.add(types.InlineKeyboardButton("اشترك في القناة 📢", url=CHANNEL_LINKS[i]))
                     markup.add(types.InlineKeyboardButton("تحققت من الاشتراك ✅", callback_data='start'))
-                    bot.send_message(chat_id, "عذراً، يجب عليك الاشتراك في القناة أولاً:", reply_markup=markup)
+                    bot.send_message(chat_id, "عذراً، يجب عليك الاشتراك في القناة أولاً لتتمكن من استخدام البوت:", reply_markup=markup)
                     return
             except Exception:
                 pass
+
+        # إذا دخل عبر رابط كود شحن
+        if is_card_code:
+            process_user_redeem_code(chat_id, param)
+            return
 
         main_menu(chat_id)
 
     elif text.startswith('/redeem'):
         args = text.split(maxsplit=1)
         if len(args) > 1:
-            message.text = args[1]
-            process_user_redeem_input(message)
+            process_user_redeem_code(chat_id, args[1])
 
     elif text.startswith('/admin') and chat_id == ADMIN_ID:
         admin_panel_shortcut(chat_id)
