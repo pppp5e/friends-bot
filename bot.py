@@ -326,6 +326,80 @@ def save_order(order_id, user_id, username, service, price, api_order_id="0", li
     except Exception as e:
         print(f"Error saving order: {e}")
 
+# ==========================================
+# 🛠️ الدوال المفقودة لمعالجة الطلبات (إصلاح جوهري)
+# ==========================================
+def prepare_order_summary(message, final_price, service_id, api_qty, service_name):
+    chat_id = message.chat.id
+    if message.text and message.text.startswith('/'):
+        return
+    link = message.text.strip() if message.text else ""
+    if not link:
+        bot.send_message(chat_id, "⚠️ يرجى إرسال رابط أو تفاصيل صحيحة.")
+        return
+
+    pending_orders_cache[chat_id] = {
+        'service_id': service_id,
+        'qty': api_qty,
+        'name': service_name,
+        'price': final_price,
+        'link': link
+    }
+
+    markup_confirm = types.InlineKeyboardMarkup(row_width=1)
+    markup_confirm.add(
+        types.InlineKeyboardButton("🛒 إضافة لسلة المشتريات", callback_data='add_to_cart_now'),
+        types.InlineKeyboardButton("✅ تأكيد الشراء الآن", callback_data='confirm_order_now'),
+        types.InlineKeyboardButton("❌ إلغاء الطلب", callback_data='cancel_order_now'),
+        types.InlineKeyboardButton("🔙 رجوع", callback_data='start')
+    )
+
+    text_confirm = (
+        f"🧾 **تأكيد ملخص الطلب:**\n"
+        f"━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📦 الخدمة: {service_name}\n"
+        f"🔗 الرابط/الآيدي: `{link}`\n"
+        f"💰 السعر النهائي: `{final_price}` نقطة"
+    )
+    bot.send_message(chat_id, text_confirm, reply_markup=markup_confirm, parse_mode="Markdown")
+
+def prepare_order_summary_direct(message, final_price, service_name):
+    chat_id = message.chat.id
+    if message.text and message.text.startswith('/'):
+        return
+    link = message.text.strip() if message.text else ""
+    if not link:
+        bot.send_message(chat_id, "⚠️ يرجى إرسال تفاصيل الطلب بشكل صحيح.")
+        return
+
+    pending_orders_cache[chat_id] = {
+        'service_id': 0,
+        'qty': 1,
+        'name': service_name,
+        'price': final_price,
+        'link': link
+    }
+
+    markup_confirm = types.InlineKeyboardMarkup(row_width=1)
+    markup_confirm.add(
+        types.InlineKeyboardButton("🛒 إضافة لسلة المشتريات", callback_data='add_to_cart_now'),
+        types.InlineKeyboardButton("✅ تأكيد الشراء الآن", callback_data='confirm_order_now'),
+        types.InlineKeyboardButton("❌ إلغاء الطلب", callback_data='cancel_order_now'),
+        types.InlineKeyboardButton("🔙 رجوع", callback_data='start')
+    )
+
+    text_confirm = (
+        f"🧾 **تأكيد ملخص الطلب:**\n"
+        f"━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📦 المنتج: {service_name}\n"
+        f"🎮 التفاصيل: `{link}`\n"
+        f"💰 السعر النهائي: `{final_price}` نقطة"
+    )
+    bot.send_message(chat_id, text_confirm, reply_markup=markup_confirm, parse_mode="Markdown")
+
+def prepare_order_summary_with_api_qty(message, final_price, service_id, api_qty, service_name):
+    prepare_order_summary(message, final_price, service_id, api_qty, service_name)
+
 SERVICES = {
     'flash_fol_1k': {'name': 'فلاش متابعين 1k', 'btn_label': '1k', 'price': 2.0, 'cost': 1.0, 'service_id': 2051, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
     'flash_fol_2k': {'name': 'فلاش متابعين 2k', 'btn_label': '2k', 'price': 4.0, 'cost': 2.0, 'service_id': 2051, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
@@ -493,12 +567,7 @@ def notify_admin_new_user(user_id, first_name, username):
     except Exception as e:
         print(f"❌ Failed to send admin notification: {e}")
 
-# ==========================================
-# 🔄 دوال التسجيل وشحن الكروت (مُعاد بناؤها بالكامل)
-# ==========================================
-
 def register_user_if_new(user_id, first_name, username, referrer_id=None):
-    """دالة تسجيل المستخدم الجديد أو تحديث بياناته مع نظام الإحالة بدقة تامة"""
     try:
         u = get_user(user_id)
         safe_username = username if username else "لا يوجد"
@@ -562,7 +631,6 @@ def register_user_if_new(user_id, first_name, username, referrer_id=None):
     return False
 
 def process_user_redeem_code(chat_id, raw_code):
-    """دالة معالجة شحن الكروت وأكواد الهدية بشكل آمن وفوري"""
     code = raw_code.strip().upper()
     
     res_voucher = supabase.table("vouchers").select("*").eq("code", code).execute()
@@ -604,8 +672,6 @@ def process_user_redeem_code(chat_id, raw_code):
     bot.send_message(chat_id, "❌ **الكود المدخل غير صحيح أو انتهت صلاحيته!**", parse_mode="Markdown")
     main_menu(chat_id)
     return False
-
-# ==========================================
 
 def check_sub(user_id):
     for ch in CHANNELS:
@@ -2665,7 +2731,7 @@ def process_usdt_proof_input(message):
     bot.send_message(chat_id, "✅ **تم إرسال إشعار التحويل إلى الإدارة بنجاح!**\nسيتم مراجعة العملية وإضافة النقاط إلى رصيدك بأقرب وقت ⏳", parse_mode="Markdown")
     main_menu(chat_id)
 
-@bot.message_handler(func=lambda message: message.chat.id == ADMIN_ID and message.text and not message.text.startswith('/'))
+@bot.message_handler(func=lambda message: message.chat.id == ADMIN_ID and message.text and not message.text.startswith('/') and any(w in message.text for w in ['تحويل', 'رصيد', 'ناجح', 'دينار', 'ألف']))
 def handle_incoming_sms_forward(message):
     text = message.text.strip()
     
@@ -2975,9 +3041,6 @@ def process_transfer_amount(message):
     except ValueError:
         bot.send_message(chat_id, "⚠️ أدخل أرقاماً صحيحة فقط.")
 
-# ==========================================
-# 🚀 المعالج الأساسي للأوامر (معالجة دقيقة للرابط والكود والتسجيل)
-# ==========================================
 @bot.message_handler(commands=['start', 'redeem', 'admin'])
 def handle_commands(message):
     chat_id = message.chat.id
@@ -2993,10 +3056,8 @@ def handle_commands(message):
         is_card_code = param and param.startswith('CARD-')
         referrer_id = param if param and not is_card_code and param != str(chat_id) and param.isdigit() else None
 
-        # تسجيل المستخدم أولاً
         register_user_if_new(chat_id, message.from_user.first_name, message.from_user.username, referrer_id)
 
-        # فحص القنوات الإلزامية أولاً قبل تفعيل الكود أو الدخول (للأدمن مستثنى)
         if chat_id != ADMIN_ID:
             try:
                 if not check_sub(chat_id):
@@ -3009,7 +3070,6 @@ def handle_commands(message):
             except Exception:
                 pass
 
-        # إذا دخل عبر رابط كود شحن
         if is_card_code:
             process_user_redeem_code(chat_id, param)
             return
