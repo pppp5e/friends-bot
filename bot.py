@@ -23,9 +23,8 @@ SUPPORT_USER = '@ppppp5e'
 PROOFS_CHANNEL = "@almohlgm"
 RECEIVER_PHONE = "07716465605"
 
-# إعدادات محفظة USDT (يمكنك استبدال العنوان وعنوان الشبكة بما يناسبك)
-USDT_WALLET_ADDRESS = "TYourUSDTWalletAddressHere..."  # ضع عنوان محفظتك TRC20 هنا
-USDT_TO_POINTS_RATE = 10  # كل 1 USDT يعادل كم نقطة؟
+USDT_WALLET_ADDRESS = "TYourUSDTWalletAddressHere..."  
+USDT_TO_POINTS_RATE = 10  
 
 CHANNELS = ["@almohlgm"]
 CHANNEL_LINKS = ["https://t.me/almohlgm"]
@@ -180,21 +179,17 @@ def get_user(user_id):
 def find_user_by_id_or_username(query_str):
     clean_query = str(query_str).strip().replace('@', '').lower()
     try:
-        # إذا كان المدخل أرقاماً بحتاً، نبحث عن الـ user_id مباشرة
         if clean_query.isdigit():
             res = supabase.table("users").select("*").eq("user_id", int(clean_query)).execute()
             if res.data:
                 return res.data[0]
         
-        # إذا كان نصاً (يوزر)، نبحث بالـ username مع تجاهل حالة الأحرف
         res_user = supabase.table("users").select("*").ilike("username", f"%{clean_query}%").execute()
         if res_user.data:
             return res_user.data[0]
-            
     except Exception as e:
         print(f"Search user error: {e}")
     return None
-
 
 def get_points(user_id):
     u = get_user(user_id)
@@ -331,17 +326,14 @@ def save_order(order_id, user_id, username, service, price, api_order_id="0", li
     except Exception as e:
         print(f"Error saving order: {e}")
 
-# ==========================================
-# 4. قاموس الخدمات الشامل
-# ==========================================
 SERVICES = {
-    'flash_fol_1k': {'name': 'فلاش متابعين 1k', 'btn_label': '1k', 'price': 2.0, 'cost': 1.0, 'service_id': 2051, 'qty': 1000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
-    'flash_fol_2k': {'name': 'فلاش متابعين 2k', 'btn_label': '2k', 'price': 4.0, 'cost': 2.0, 'service_id': 2051, 'qty': 2000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
-    'flash_fol_5k': {'name': 'فلاش متابعين 5k', 'btn_label': '5k', 'price': 12.0, 'cost': 6.0, 'service_id': 2051, 'qty': 5000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
+    'flash_fol_1k': {'name': 'فلاش متابعين 1k', 'btn_label': '1k', 'price': 2.0, 'cost': 1.0, 'service_id': 2051, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
+    'flash_fol_2k': {'name': 'فلاش متابعين 2k', 'btn_label': '2k', 'price': 4.0, 'cost': 2.0, 'service_id': 2051, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
+    'flash_fol_5k': {'name': 'فلاش متابعين 5k', 'btn_label': '5k', 'price': 12.0, 'cost': 6.0, 'service_id': 2051, 'qty': 5000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
 
-    'dragon_fol_1k': {'name': 'دراجون متابعين 1k', 'btn_label': '1k', 'price': 1.5, 'cost': 0.7, 'service_id': 1548, 'qty': 1000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
-    'dragon_fol_2k': {'name': 'دراجون متابعين 2k', 'btn_label': '2k', 'price': 3.0, 'cost': 1.4, 'service_id': 1548, 'qty': 2000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
-    'dragon_fol_5k': {'name': 'دراجون متابعين 5k', 'btn_label': '5k', 'price': 7.0, 'cost': 3.5, 'service_id': 1548, 'qty': 5000, 'category': 'cat_insta', 'msg': 'أرسل رابط حسابك:'},
+    'dragon_fol_1k': {'name': 'دراجون متابعين 1k', 'btn_label': '1k', 'price': 1.5, 'cost': 0.7, 'service_id': 1548, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
+    'dragon_fol_2k': {'name': 'دراجون متابعين 2k', 'btn_label': '2k', 'price': 3.0, 'cost': 1.4, 'service_id': 1548, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
+    'dragon_fol_5k': {'name': 'دراجون متابعين 5k', 'btn_label': '5k', 'price': 7.0, 'cost': 3.5, 'service_id': 1548, 'qty': 5000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
 
     'tg_sub_20d_1k': {'name': 'أعضاء تليجرام (ضمان 20 يوم) 1k', 'btn_label': '1k', 'price': 5.9, 'cost': 5.4, 'service_id': 2035, 'qty': 1000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
     'tg_sub_20d_2k': {'name': 'أعضاء تليجرام (ضمان 20 يوم) 2k', 'btn_label': '2k', 'price': 11.8, 'cost': 10.8, 'service_id': 2035, 'qty': 2000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
@@ -367,23 +359,23 @@ SERVICES = {
     'tg_boost_1d_2k': {'name': 'تعزيز قنوات Boost 2k', 'btn_label': '2k', 'price': 79.0, 'cost': 78.0, 'service_id': 1757, 'qty': 2000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة للتعزيز:'},
     'tg_boost_1d_5k': {'name': 'تعزيز قنوات Boost 5k', 'btn_label': '5k', 'price': 197.5, 'cost': 195.0, 'service_id': 1757, 'qty': 5000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة للتعزيز:'},
 
-    'buy_like_1k': {'name': 'لايكات 1k', 'btn_label': '1k', 'price': 1.0, 'cost': 0.4, 'service_id': 2010, 'qty': 1000, 'category': 'cat_insta', 'msg': 'أرسل رابط البوست:'},
-    'buy_like_2k': {'name': 'لايكات 2k', 'btn_label': '2k', 'price': 2.0, 'cost': 0.8, 'service_id': 2010, 'qty': 2000, 'category': 'cat_insta', 'msg': 'أرسل رابط البوست:'},
-    'buy_like_5k': {'name': 'لايكات 5k', 'btn_label': '5k', 'price': 5.0, 'cost': 2.0, 'service_id': 2010, 'qty': 5000, 'category': 'cat_insta', 'msg': 'أرسل رابط البوست:'},
-    'buy_like_10k': {'name': 'لايكات 10k', 'btn_label': '10k', 'price': 10.0, 'cost': 4.0, 'service_id': 2010, 'qty': 10000, 'category': 'cat_insta', 'msg': 'أرسل رابط البوست:'},
+    'buy_like_1k': {'name': 'لايكات 1k', 'btn_label': '1k', 'price': 1.0, 'cost': 0.4, 'service_id': 2010, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'like', 'msg': 'أرسل رابط البوست:'},
+    'buy_like_2k': {'name': 'لايكات 2k', 'btn_label': '2k', 'price': 2.0, 'cost': 0.8, 'service_id': 2010, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'like', 'msg': 'أرسل رابط البوست:'},
+    'buy_like_5k': {'name': 'لايكات 5k', 'btn_label': '5k', 'price': 5.0, 'cost': 2.0, 'service_id': 2010, 'qty': 5000, 'category': 'cat_insta', 'subcat': 'like', 'msg': 'أرسل رابط البوست:'},
+    'buy_like_10k': {'name': 'لايكات 10k', 'btn_label': '10k', 'price': 10.0, 'cost': 4.0, 'service_id': 2010, 'qty': 10000, 'category': 'cat_insta', 'subcat': 'like', 'msg': 'أرسل رابط البوست:'},
 
-    'buy_view_1k': {'name': 'مشاهدات 1k', 'btn_label': '1k', 'price': 0.2, 'cost': 0.05, 'service_id': 1840, 'qty': 1000, 'category': 'cat_insta', 'msg': 'أرسل رابط الفيديو:'},
-    'buy_view_2k': {'name': 'مشاهدات 2k', 'btn_label': '2k', 'price': 0.4, 'cost': 0.10, 'service_id': 1840, 'qty': 2000, 'category': 'cat_insta', 'msg': 'أرسل رابط الفيديو:'},
-    'buy_view_3k': {'name': 'مشاهدات 3k', 'btn_label': '3k', 'price': 0.6, 'cost': 0.15, 'service_id': 1840, 'qty': 3000, 'category': 'cat_insta', 'msg': 'أرسل رابط الفيديو:'},
-    'buy_view_4k': {'name': 'مشاهدات 4k', 'btn_label': '4k', 'price': 0.8, 'cost': 0.20, 'service_id': 1840, 'qty': 4000, 'category': 'cat_insta', 'msg': 'أرسل رابط الفيديو:'},
-    'buy_view_5k': {'name': 'مشاهدات 5k', 'btn_label': '5k', 'price': 1.0, 'cost': 0.25, 'service_id': 1840, 'qty': 5000, 'category': 'cat_insta', 'msg': 'أرسل رابط الفيديو:'},
+    'buy_view_1k': {'name': 'مشاهدات 1k', 'btn_label': '1k', 'price': 0.2, 'cost': 0.05, 'service_id': 1840, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'view', 'msg': 'أرسل رابط الفيديو:'},
+    'buy_view_2k': {'name': 'مشاهدات 2k', 'btn_label': '2k', 'price': 0.4, 'cost': 0.10, 'service_id': 1840, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'view', 'msg': 'أرسل رابط الفيديو:'},
+    'buy_view_3k': {'name': 'مشاهدات 3k', 'btn_label': '3k', 'price': 0.6, 'cost': 0.15, 'service_id': 1840, 'qty': 3000, 'category': 'cat_insta', 'subcat': 'view', 'msg': 'أرسل رابط الفيديو:'},
+    'buy_view_4k': {'name': 'مشاهدات 4k', 'btn_label': '4k', 'price': 0.8, 'cost': 0.20, 'service_id': 1840, 'qty': 4000, 'category': 'cat_insta', 'subcat': 'view', 'msg': 'أرسل رابط الفيديو:'},
+    'buy_view_5k': {'name': 'مشاهدات 5k', 'btn_label': '5k', 'price': 1.0, 'cost': 0.25, 'service_id': 1840, 'qty': 5000, 'category': 'cat_insta', 'subcat': 'view', 'msg': 'أرسل رابط الفيديو:'},
 
-    'buy_share_1k': {'name': 'مشاركات 1k', 'btn_label': '1k', 'price': 1.2, 'cost': 0.5, 'service_id': 1842, 'qty': 1000, 'category': 'cat_insta', 'msg': 'أرسل رابط المنشور:'},
-    'buy_share_2k': {'name': 'مشاركات 2k', 'btn_label': '2k', 'price': 2.4, 'cost': 1.0, 'service_id': 1842, 'qty': 2000, 'category': 'cat_insta', 'msg': 'أرسل رابط المنشور:'},
-    'buy_share_3k': {'name': 'مشاركات 3k', 'btn_label': '3k', 'price': 3.6, 'cost': 1.5, 'service_id': 1842, 'qty': 3000, 'category': 'cat_insta', 'msg': 'أرسل رابط المنشور:'},
-    'buy_share_4k': {'name': 'مشاركات 4k', 'btn_label': '4k', 'price': 4.8, 'cost': 2.0, 'service_id': 1842, 'qty': 4000, 'category': 'cat_insta', 'msg': 'أرسل رابط المنشور:'},
-    'buy_share_5k': {'name': 'مشاركات 5k', 'btn_label': '5k', 'price': 6.0, 'cost': 2.5, 'service_id': 1842, 'qty': 5500, 'category': 'cat_insta', 'msg': 'أرسل رابط المنشور:'},
-    'buy_share_10k': {'name': 'مشاركات 10k', 'btn_label': '10k', 'price': 11.0, 'cost': 5.0, 'service_id': 1842, 'qty': 10000, 'category': 'cat_insta', 'msg': 'أرسل رابط المنشور:'},
+    'buy_share_1k': {'name': 'مشاركات 1k', 'btn_label': '1k', 'price': 1.2, 'cost': 0.5, 'service_id': 1842, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
+    'buy_share_2k': {'name': 'مشاركات 2k', 'btn_label': '2k', 'price': 2.4, 'cost': 1.0, 'service_id': 1842, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
+    'buy_share_3k': {'name': 'مشاركات 3k', 'btn_label': '3k', 'price': 3.6, 'cost': 1.5, 'service_id': 1842, 'qty': 3000, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
+    'buy_share_4k': {'name': 'مشاركات 4k', 'btn_label': '4k', 'price': 4.8, 'cost': 2.0, 'service_id': 1842, 'qty': 4000, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
+    'buy_share_5k': {'name': 'مشاركات 5k', 'btn_label': '5k', 'price': 6.0, 'cost': 2.5, 'service_id': 1842, 'qty': 5500, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
+    'buy_share_10k': {'name': 'مشاركات 10k', 'btn_label': '10k', 'price': 11.0, 'cost': 5.0, 'service_id': 1842, 'qty': 10000, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
 
     'buy_esim_month': {'name': 'شريحة eSIM شهر', 'btn_label': 'شهر', 'price': 15.0, 'cost': 10.0, 'service_id': 0, 'qty': 1, 'category': 'cat_esim'},
     'buy_esim_week': {'name': 'شريحة eSIM أسبوع', 'btn_label': 'أسبوع', 'price': 5.0, 'cost': 3.0, 'service_id': 0, 'qty': 1, 'category': 'cat_esim'},
@@ -949,7 +941,6 @@ def query(call):
                 bot.edit_message_text("🛠️ **إدارة صيانة الأزرار والأقسام الشاملة:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
                 return
 
-            # معالجة قبول شحن USDT من الأدمن
             elif data.startswith('accept_usdt_'):
                 target_uid = int(data.replace('accept_usdt_', ''))
                 points_to_add = usdt_recharge_states.get(target_uid, {}).get('points', USDT_TO_POINTS_RATE)
@@ -968,7 +959,6 @@ def query(call):
                     pass
                 return
 
-            # معالجة رفض شحن USDT من الأدمن
             elif data.startswith('reject_usdt_'):
                 target_uid = int(data.replace('reject_usdt_', ''))
                 try:
@@ -982,9 +972,18 @@ def query(call):
                     pass
                 return
 
-        # ==========================================
-        # معالج الحذف الموحد والمنظم الجديد
-        # ==========================================
+            elif data.startswith('subcat_insta_') and chat_id == ADMIN_ID:
+                subcat_choice = data.replace('subcat_insta_', '')
+                temp_add_service[chat_id]['subcat'] = subcat_choice
+                
+                text_req = "📝 **أدخل اسم الخدمة الجديدة التي ستظهر للمستخدمين:**"
+                markup_back = types.InlineKeyboardMarkup()
+                markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_manage_services'))
+                
+                bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
+                bot.register_next_step_handler(call.message, step_srv_name)
+                return
+
         if (data.startswith('delsrv_') or data.startswith('delgroup_') or data.startswith('delcat_')) and chat_id == ADMIN_ID:
             is_cat_del = data.startswith('delcat_')
             loading_msg_text = "⏳ جاري حذف القسم بالكامل، يرجى الانتظار..." if is_cat_del else "⏳ جاري حذف الخدمة، يرجى الانتظار..."
@@ -999,7 +998,7 @@ def query(call):
                     cat_to_del = data.replace('delcat_', '', 1).strip()
                     if cat_to_del in CATEGORIES:
                         cat_name = CATEGORIES[cat_to_del]
-                        keys_to_del = [k for k, v in SERVICES.items() if v.get('category') == cat_to_del]
+                        keys_to_del = [k for k, v in SERVICES.items() if v.get('category'] == cat_to_del]
 
                         for k in keys_to_del:
                             if k in SERVICES:
@@ -1156,9 +1155,6 @@ def query(call):
             main_menu(chat_id, message_id)
             return
 
-        # ==========================================
-        # واجهة شحن الـ USDT الجديدة كلياً
-        # ==========================================
         elif data == 'usdt_recharge_menu':
             if is_item_in_maintenance('usdt_recharge_menu') and chat_id != ADMIN_ID:
                 bot.send_message(chat_id, "🛠️ خدمة شحن USDT قيد الصيانة حالياً.")
@@ -1191,18 +1187,9 @@ def query(call):
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'back_start'
             markup = types.InlineKeyboardMarkup(row_width=1)
             
-            for k, v in SERVICES.items():
-                if v.get('category') == 'cat_insta' and k.startswith('custom_srv_'):
-                    s_name = v.get('name', 'خدمة غير مسماة')
-                    s_price = v.get('price', 0)
-                    if is_adm_maint:
-                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
-                        markup.add(types.InlineKeyboardButton(f"{s_name} - {st}", callback_data=f"toggle_maint_{k}"))
-                    else:
-                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
-                            markup.add(types.InlineKeyboardButton(f"{v.get('btn_label', s_name)} ({s_price} ن)", callback_data=k))
-
             markup.add(
+                types.InlineKeyboardButton("⚡ فلاش متابعين انستغرام الأسرع في العالم", callback_data='open_flash_fol'),
+                types.InlineKeyboardButton("🐉 دراجون متابعين انستا تحديث جديد", callback_data='open_dragon_fol'),
                 types.InlineKeyboardButton("👤 قسم المتابعين", callback_data='insta_fol_sub_menu'),
                 types.InlineKeyboardButton("❤️ قسم اللايكات", callback_data='open_like_menu'),
                 types.InlineKeyboardButton("👁️ قسم المشاهدات", callback_data='open_view_menu'),
@@ -1499,6 +1486,18 @@ def query(call):
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'cat_insta'
             markup = types.InlineKeyboardMarkup(row_width=1)
+            
+            for k, v in SERVICES.items():
+                if v.get('category') == 'cat_insta' and v.get('subcat') == 'fol':
+                    s_name = v.get('name', 'خدمة')
+                    s_price = v.get('price', 0)
+                    if is_adm_maint:
+                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
+                        markup.add(types.InlineKeyboardButton(f"{s_name} - {st}", callback_data=f"toggle_maint_{k}"))
+                    else:
+                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
+                            markup.add(types.InlineKeyboardButton(f"{v.get('btn_label', s_name)} ({s_price} ن)", callback_data=k))
+
             markup.add(
                 types.InlineKeyboardButton("⚡ فلاش متابعين انستغرام الأسرع في العالم", callback_data='open_flash_fol'),
                 types.InlineKeyboardButton("🐉 دراجون متابعين انستا تحديث جديد", callback_data='open_dragon_fol'),
@@ -1563,6 +1562,18 @@ def query(call):
         elif data == 'open_like_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            
+            for k, v in SERVICES.items():
+                if v.get('category') == 'cat_insta' and v.get('subcat') == 'like':
+                    s_name = v.get('name', 'خدمة')
+                    s_price = v.get('price', 0)
+                    if is_adm_maint:
+                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
+                        markup.add(types.InlineKeyboardButton(f"{s_name} - {st}", callback_data=f"toggle_maint_{k}"))
+                    else:
+                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
+                            markup.add(types.InlineKeyboardButton(f"{v.get('btn_label', s_name)} ({s_price} ن)", callback_data=k))
+
             for k in ['buy_like_1k', 'buy_like_2k', 'buy_like_5k', 'buy_like_10k']:
                 if k in SERVICES:
                     s_data = SERVICES[k]
@@ -1581,6 +1592,18 @@ def query(call):
         elif data == 'open_view_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            
+            for k, v in SERVICES.items():
+                if v.get('category') == 'cat_insta' and v.get('subcat') == 'view':
+                    s_name = v.get('name', 'خدمة')
+                    s_price = v.get('price', 0)
+                    if is_adm_maint:
+                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
+                        markup.add(types.InlineKeyboardButton(f"{s_name} - {st}", callback_data=f"toggle_maint_{k}"))
+                    else:
+                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
+                            markup.add(types.InlineKeyboardButton(f"{v.get('btn_label', s_name)} ({s_price} ن)", callback_data=k))
+
             for k in ['buy_view_1k', 'buy_view_2k', 'buy_view_3k', 'buy_view_4k', 'buy_view_5k']:
                 if k in SERVICES:
                     s_data = SERVICES[k]
@@ -1599,6 +1622,18 @@ def query(call):
         elif data == 'open_share_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            
+            for k, v in SERVICES.items():
+                if v.get('category') == 'cat_insta' and v.get('subcat') == 'share':
+                    s_name = v.get('name', 'خدمة')
+                    s_price = v.get('price', 0)
+                    if is_adm_maint:
+                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
+                        markup.add(types.InlineKeyboardButton(f"{s_name} - {st}", callback_data=f"toggle_maint_{k}"))
+                    else:
+                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
+                            markup.add(types.InlineKeyboardButton(f"{v.get('btn_label', s_name)} ({s_price} ن)", callback_data=k))
+
             for k in ['buy_share_1k', 'buy_share_2k', 'buy_share_3k', 'buy_share_4k', 'buy_share_5k', 'buy_share_10k']:
                 if k in SERVICES:
                     s_data = SERVICES[k]
@@ -1849,6 +1884,18 @@ def query(call):
             cat_key = data.replace('addsrv_cat_', '')
             temp_add_service[chat_id] = {'category': cat_key}
             
+            if cat_key == 'cat_insta':
+                markup = types.InlineKeyboardMarkup(row_width=1)
+                markup.add(
+                    types.InlineKeyboardButton("👤 قسم المتابعين", callback_data='subcat_insta_fol'),
+                    types.InlineKeyboardButton("❤️ قسم اللايكات", callback_data='subcat_insta_like'),
+                    types.InlineKeyboardButton("👁️ قسم المشاهدات", callback_data='subcat_insta_view'),
+                    types.InlineKeyboardButton("✈️ قسم المشاركات", callback_data='subcat_insta_share'),
+                    types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_manage_services')
+                )
+                bot.edit_message_text("📂 **اختر القسم الفرعي المناسب داخل الانستغرام لهذه الخدمة:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
+                return
+
             text_req = "📝 **أدخل اسم الخدمة الجديدة التي ستظهر للمستخدمين:**"
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_manage_services'))
@@ -2289,7 +2336,6 @@ def query(call):
 
             srv_key = data
 
-            # فحص التيرات المباشر لضمان ظهور الأزرار مع الخيار اليدوي
             tiers_data = srv_data_item.get('tiers')
             if not tiers_data and 'tiers' in srv_data_item:
                 tiers_data = srv_data_item['tiers']
@@ -2434,6 +2480,7 @@ def query(call):
                     username = call.from_user.username or "غير معروف"
                     order_id = get_next_order_id()
                     api_id = res['order']
+                    # تم إصلاح حفظ طلبات الـ API في سوبابيس هنا
                     save_order(order_id, chat_id, username, order_data['name'], final_price, api_id, order_data['link'], order_data['service_id'], order_data['qty'])
                     bot.send_message(chat_id, f"✅ **تم إرسال طلبك بنجاح!**\n🆔 رقم الطلب: `{order_id}`\n🔖 رقم الـ API: `{api_id}`", parse_mode="Markdown")
                     send_proof_to_channel(chat_id, order_id, order_data['name'], order_data['qty'], api_id)
@@ -2445,6 +2492,7 @@ def query(call):
                 order_id = get_next_order_id()
                 username = call.from_user.username or "لا يوجد"
                 link_info = order_data.get('link', 'خدمة مباشرة')
+                # تم إصلاح حفظ الطلبات اليدوية والبطاقات هنا أيضاً
                 save_order(order_id, chat_id, username, order_data['name'], final_price, "0", link_info, 0, 1)
                 bot.send_message(ADMIN_ID, f"📦 **طلب جديد (يدوي/لعبة):**\n🆔 رقم الطلب: `{order_id}`\n👤 المستخدم: `{chat_id}` (@{username})\n📦 الخدمة: {order_data['name']}\n🎮 التفاصيل: `{link_info}`", parse_mode="Markdown")
                 bot.send_message(chat_id, f"✅ **تم استلام طلبك بنجاح!**\n🆔 رقم الطلب: `{order_id}`\n📩 تواصل مع الدعم لاستلام الطلب: {SUPPORT_USER}", parse_mode="Markdown")
@@ -2623,7 +2671,6 @@ def process_asiacell_phone_input(message):
         reply_markup=markup
     )
 
-# دالة معالجة إرسال إثبات تحويل USDT
 def process_usdt_proof_input(message):
     chat_id = message.chat.id
     proof_text = message.text.strip()
@@ -2632,7 +2679,6 @@ def process_usdt_proof_input(message):
     if proof_text.startswith('/'):
         return
 
-    # حفظ النقاط المستحقة مؤقتاً (مثلاً 10 نقاط أو افتراضي لكل عملية)
     usdt_recharge_states[chat_id] = {'points': USDT_TO_POINTS_RATE}
 
     markup_admin = types.InlineKeyboardMarkup(row_width=2)
@@ -2792,6 +2838,7 @@ def step_srv_save_final(message):
             'btn_label': srv['name'][:30],
             'service_id': srv['service_id'], 
             'category': srv['category'],
+            'subcat': srv.get('subcat'),
             'is_custom_tiers': True, 
             'tiers': tiers
         }
@@ -3015,13 +3062,15 @@ def handle_commands(message):
         args = text.split()
         param = args[1] if len(args) > 1 else None
         
+        # التأكد من تسجيل المستخدم أولاً قبل شحن الكود عبر الرابط
+        register_user_if_new(chat_id, message.from_user.first_name, message.from_user.username, param if param and not param.startswith('CARD-') else None)
+
         if param and param.startswith('CARD-'):
             message.text = param
             process_user_redeem_input(message)
             return
 
         referrer_id = param if param and param != str(chat_id) and param.isdigit() else None
-        register_user_if_new(chat_id, message.from_user.first_name, message.from_user.username, referrer_id)
         
         if chat_id != ADMIN_ID:
             try:
