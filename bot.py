@@ -176,19 +176,25 @@ def get_user(user_id):
     except Exception as e:
         print(f"Error fetching user: {e}")
         return None
-
+        
 def find_user_by_id_or_username(query_str):
     clean_query = str(query_str).strip().replace('@', '').lower()
     try:
-        res = supabase.table("users").select("*").or_(f"user_id.eq.{clean_query},username.ilike.%{clean_query}%").execute()
-        if res.data:
-            return res.data[0]
-        res_like = supabase.table("users").select("*").ilike("username", f"%{clean_query}%").execute()
-        if res_like.data:
-            return res_like.data[0]
+        # إذا كان المدخل أرقاماً بحتاً، نبحث عن الـ user_id مباشرة
+        if clean_query.isdigit():
+            res = supabase.table("users").select("*").eq("user_id", int(clean_query)).execute()
+            if res.data:
+                return res.data[0]
+        
+        # إذا كان نصاً (يوزر)، نبحث بالـ username مع تجاهل حالة الأحرف
+        res_user = supabase.table("users").select("*").ilike("username", f"%{clean_query}%").execute()
+        if res_user.data:
+            return res_user.data[0]
+            
     except Exception as e:
         print(f"Search user error: {e}")
     return None
+
 
 def get_points(user_id):
     u = get_user(user_id)
