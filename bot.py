@@ -326,80 +326,6 @@ def save_order(order_id, user_id, username, service, price, api_order_id="0", li
     except Exception as e:
         print(f"Error saving order: {e}")
 
-# ==========================================
-# 🛠️ الدوال المفقودة لمعالجة الطلبات (إصلاح جوهري)
-# ==========================================
-def prepare_order_summary(message, final_price, service_id, api_qty, service_name):
-    chat_id = message.chat.id
-    if message.text and message.text.startswith('/'):
-        return
-    link = message.text.strip() if message.text else ""
-    if not link:
-        bot.send_message(chat_id, "⚠️ يرجى إرسال رابط أو تفاصيل صحيحة.")
-        return
-
-    pending_orders_cache[chat_id] = {
-        'service_id': service_id,
-        'qty': api_qty,
-        'name': service_name,
-        'price': final_price,
-        'link': link
-    }
-
-    markup_confirm = types.InlineKeyboardMarkup(row_width=1)
-    markup_confirm.add(
-        types.InlineKeyboardButton("🛒 إضافة لسلة المشتريات", callback_data='add_to_cart_now'),
-        types.InlineKeyboardButton("✅ تأكيد الشراء الآن", callback_data='confirm_order_now'),
-        types.InlineKeyboardButton("❌ إلغاء الطلب", callback_data='cancel_order_now'),
-        types.InlineKeyboardButton("🔙 رجوع", callback_data='start')
-    )
-
-    text_confirm = (
-        f"🧾 **تأكيد ملخص الطلب:**\n"
-        f"━━━━━━━━━━━━━━━━━━━\n\n"
-        f"📦 الخدمة: {service_name}\n"
-        f"🔗 الرابط/الآيدي: `{link}`\n"
-        f"💰 السعر النهائي: `{final_price}` نقطة"
-    )
-    bot.send_message(chat_id, text_confirm, reply_markup=markup_confirm, parse_mode="Markdown")
-
-def prepare_order_summary_direct(message, final_price, service_name):
-    chat_id = message.chat.id
-    if message.text and message.text.startswith('/'):
-        return
-    link = message.text.strip() if message.text else ""
-    if not link:
-        bot.send_message(chat_id, "⚠️ يرجى إرسال تفاصيل الطلب بشكل صحيح.")
-        return
-
-    pending_orders_cache[chat_id] = {
-        'service_id': 0,
-        'qty': 1,
-        'name': service_name,
-        'price': final_price,
-        'link': link
-    }
-
-    markup_confirm = types.InlineKeyboardMarkup(row_width=1)
-    markup_confirm.add(
-        types.InlineKeyboardButton("🛒 إضافة لسلة المشتريات", callback_data='add_to_cart_now'),
-        types.InlineKeyboardButton("✅ تأكيد الشراء الآن", callback_data='confirm_order_now'),
-        types.InlineKeyboardButton("❌ إلغاء الطلب", callback_data='cancel_order_now'),
-        types.InlineKeyboardButton("🔙 رجوع", callback_data='start')
-    )
-
-    text_confirm = (
-        f"🧾 **تأكيد ملخص الطلب:**\n"
-        f"━━━━━━━━━━━━━━━━━━━\n\n"
-        f"📦 المنتج: {service_name}\n"
-        f"🎮 التفاصيل: `{link}`\n"
-        f"💰 السعر النهائي: `{final_price}` نقطة"
-    )
-    bot.send_message(chat_id, text_confirm, reply_markup=markup_confirm, parse_mode="Markdown")
-
-def prepare_order_summary_with_api_qty(message, final_price, service_id, api_qty, service_name):
-    prepare_order_summary(message, final_price, service_id, api_qty, service_name)
-
 SERVICES = {
     'flash_fol_1k': {'name': 'فلاش متابعين 1k', 'btn_label': '1k', 'price': 2.0, 'cost': 1.0, 'service_id': 2051, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
     'flash_fol_2k': {'name': 'فلاش متابعين 2k', 'btn_label': '2k', 'price': 4.0, 'cost': 2.0, 'service_id': 2051, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
@@ -504,6 +430,8 @@ def load_custom_services_from_db():
                         "key": "custom_services_list",
                         "val_text": json.dumps(updated_saved_dict, ensure_ascii=False) if updated_saved_dict else ""
                     }, on_conflict="key").execute()
+
+                print(f"✅ Loaded {len(updated_saved_dict)} custom services from database (Filtered).")
     except Exception as e:
         print(f"Error loading custom services: {e}")
 
@@ -516,6 +444,27 @@ CATEGORIES = {
     'cat_itunes': 'قسم آيتونز 🍎',
     'cat_esim': 'قسم شرائح eSIM 📱'
 }
+
+try:
+    res_del_cats = supabase.table("deleted_categories").select("cat_key").execute()
+    if res_del_cats.data:
+        for row in res_del_cats.data:
+            bc = row.get('cat_key')
+            if bc in CATEGORIES:
+                del CATEGORIES[bc]
+except Exception as e:
+    print(f"Error loading deleted categories from table: {e}")
+
+try:
+    res_del_srvs = supabase.table("deleted_services").select("srv_key").execute()
+    if res_del_srvs.data:
+        for row in res_del_srvs.data:
+            b_srv = row.get('srv_key')
+            if b_srv in SERVICES:
+                del SERVICES[b_srv]
+        print(f"✅ تم فلترة {len(res_del_srvs.data)} خدمة محذوفة مسبقاً من الذاكرة.")
+except Exception as e:
+    print(f"Error loading deleted services from table: {e}")
 
 def admin_panel_shortcut(chat_id, message_id=None):
     m_status = "مفعل 🛠️" if is_maintenance() else "معطل 🟢"
@@ -567,6 +516,68 @@ def notify_admin_new_user(user_id, first_name, username):
     except Exception as e:
         print(f"❌ Failed to send admin notification: {e}")
 
+def prepare_order_summary_direct(message, base_price, data_name):
+    chat_id = message.chat.id
+    raw_text = message.text or ""
+    
+    pending_orders_cache[chat_id] = {
+        'service_id': 0,
+        'qty': 1,
+        'name': data_name,
+        'price': base_price,
+        'link': raw_text.strip()
+    }
+    send_order_confirmation_screen(chat_id)
+
+def prepare_order_summary(message, base_price, service_id, quantity, data_name):
+    chat_id = message.chat.id
+    raw_text = message.text or ""
+    
+    service_cat = 'cat_insta'
+    for k, v in SERVICES.items():
+        if v.get('service_id') == service_id:
+            service_cat = v.get('category', 'cat_insta')
+            break
+            
+    is_valid, err_msg = validate_service_link(service_cat, raw_text)
+    if not is_valid:
+        bot.send_message(chat_id, err_msg)
+        return
+
+    urls = re.findall(r'https?://[^\s\)\],]+', raw_text)
+    clean_link = urls[0].split('?')[0] if urls else raw_text.strip()
+
+    pending_orders_cache[chat_id] = {
+        'service_id': service_id,
+        'qty': quantity,
+        'name': data_name,
+        'price': base_price,
+        'link': clean_link
+    }
+    send_order_confirmation_screen(chat_id)
+
+def send_order_confirmation_screen(chat_id):
+    order_data = pending_orders_cache.get(chat_id)
+    if not order_data:
+        return
+    markup_confirm = types.InlineKeyboardMarkup(row_width=1)
+    markup_confirm.add(
+        types.InlineKeyboardButton("🛒 إضافة لسلة المشتريات", callback_data='add_to_cart_now'),
+        types.InlineKeyboardButton("✅ تأكيد الشراء الآن", callback_data='confirm_order_now'),
+        types.InlineKeyboardButton("❌ إلغاء الطلب", callback_data='cancel_order_now')
+    )
+    text_confirm = (
+        f"🧾 **تأكيد ملخص الطلب:**\n"
+        f"━━━━━━━━━━━━━━━━━━━\n\n"
+        f"📦 المنتج: {order_data['name']}\n"
+        f"🔗 التفاصيل/الرابط: `{order_data['link']}`\n"
+        f"💰 السعر النهائي: `{order_data['price']}` نقطة"
+    )
+    bot.send_message(chat_id, text_confirm, reply_markup=markup_confirm, parse_mode="Markdown")
+
+def prepare_order_summary_with_api_qty(message, base_price, service_id, quantity, data_name):
+    prepare_order_summary(message, base_price, service_id, quantity, data_name)
+
 def register_user_if_new(user_id, first_name, username, referrer_id=None):
     try:
         u = get_user(user_id)
@@ -578,7 +589,6 @@ def register_user_if_new(user_id, first_name, username, referrer_id=None):
 
             initial_points = 0.0
             clean_referrer = None
-            
             if referrer_id and str(referrer_id).isdigit():
                 clean_referrer = int(referrer_id)
                 if clean_referrer != user_id:
@@ -622,55 +632,15 @@ def register_user_if_new(user_id, first_name, username, referrer_id=None):
                         print(f"Failed to notify referrer: {e}")
             return True
         else:
-            supabase.table("users").update({
-                "first_name": safe_name,
-                "username": safe_username
-            }).eq("user_id", user_id).execute()
+            try:
+                supabase.table("users").update({
+                    "first_name": safe_name,
+                    "username": safe_username
+                }).eq("user_id", user_id).execute()
+            except Exception:
+                pass
     except Exception as e:
         print(f"Register user exception: {e}")
-    return False
-
-def process_user_redeem_code(chat_id, raw_code):
-    code = raw_code.strip().upper()
-    
-    res_voucher = supabase.table("vouchers").select("*").eq("code", code).execute()
-    if res_voucher.data:
-        amt = float(res_voucher.data[0]['amount'])
-        update_points(chat_id, amt, is_recharge=True)
-        supabase.table("vouchers").delete().eq("code", code).execute()
-        bot.send_message(chat_id, f"🎉 **تم شحن الكود بنجاح!**\n💰 تمت إضافة `{amt}` نقطة إلى رصيدك ⚡", parse_mode="Markdown")
-        main_menu(chat_id)
-        return True
-
-    res_gift = supabase.table("gift_codes").select("*").eq("code", code).execute()
-    if res_gift.data:
-        g = res_gift.data[0]
-        used_cnt = int(g.get('used_count', 0))
-        max_u = int(g.get('max_uses', 1))
-        
-        if used_cnt >= max_u:
-            bot.send_message(chat_id, "❌ **عذراً، انتهت كمية استخدام هذا الكود!**", parse_mode="Markdown")
-            main_menu(chat_id)
-            return False
-            
-        res_used = supabase.table("gift_claims").select("*").eq("code", code).eq("user_id", chat_id).execute()
-        if res_used.data:
-            bot.send_message(chat_id, "⚠️ **لقد قمت باستخدام هذا الكود مسبقاً ولا يمكنك استخدامه مرة أخرى!**", parse_mode="Markdown")
-            main_menu(chat_id)
-            return False
-
-        amt = float(g['points'])
-        update_points(chat_id, amt, is_recharge=True)
-        
-        supabase.table("gift_codes").update({"used_count": used_cnt + 1}).eq("code", code).execute()
-        supabase.table("gift_claims").insert({"code": code, "user_id": chat_id}).execute()
-        
-        bot.send_message(chat_id, f"🎉 **مبروك! تم استبدال الكود بنجاح.**\n💰 تمت إضافة `{amt}` نقطة إلى رصيدك ⚡", parse_mode="Markdown")
-        main_menu(chat_id)
-        return True
-
-    bot.send_message(chat_id, "❌ **الكود المدخل غير صحيح أو انتهت صلاحيته!**", parse_mode="Markdown")
-    main_menu(chat_id)
     return False
 
 def check_sub(user_id):
@@ -1002,6 +972,7 @@ def query(call):
                     pass
                 return
 
+            # معالجة اختيار القسم الفرعي لانستغرام عند إضافة خدمة جديدة
             elif data.startswith('subcat_insta_') and chat_id == ADMIN_ID:
                 subcat_choice = data.replace('subcat_insta_', '')
                 temp_add_service[chat_id]['subcat'] = subcat_choice
@@ -1217,6 +1188,7 @@ def query(call):
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'back_start'
             markup = types.InlineKeyboardMarkup(row_width=1)
             
+            # منع ظهور الخدمات المخصصة في الواجهة الرئيسية للانستغرام لتظهر حصرياً داخل أقسامها الفرعية
             markup.add(
                 types.InlineKeyboardButton("⚡ فلاش متابعين انستغرام الأسرع في العالم", callback_data='open_flash_fol'),
                 types.InlineKeyboardButton("🐉 دراجون متابعين انستا تحديث جديد", callback_data='open_dragon_fol'),
@@ -1517,6 +1489,7 @@ def query(call):
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'cat_insta'
             markup = types.InlineKeyboardMarkup(row_width=1)
             
+            # جلب الخدمات المضافة خصخصيصاً لقسم المتابعين (subcat == 'fol')
             for k, v in SERVICES.items():
                 if v.get('category') == 'cat_insta' and v.get('subcat') == 'fol':
                     s_name = v.get('name', 'خدمة')
@@ -1593,6 +1566,7 @@ def query(call):
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             
+            # جلب الخدمات المضافة خصيصاً لقسم اللايكات (subcat == 'like')
             for k, v in SERVICES.items():
                 if v.get('category') == 'cat_insta' and v.get('subcat') == 'like':
                     s_name = v.get('name', 'خدمة')
@@ -1623,6 +1597,7 @@ def query(call):
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             
+            # جلب الخدمات المضافة خصيصاً لقسم المشاهدات (subcat == 'view')
             for k, v in SERVICES.items():
                 if v.get('category') == 'cat_insta' and v.get('subcat') == 'view':
                     s_name = v.get('name', 'خدمة')
@@ -1653,6 +1628,7 @@ def query(call):
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             
+            # جلب الخدمات المضافة خصيصاً لقسم المشاركات (subcat == 'share')
             for k, v in SERVICES.items():
                 if v.get('category') == 'cat_insta' and v.get('subcat') == 'share':
                     s_name = v.get('name', 'خدمة')
@@ -1848,7 +1824,7 @@ def query(call):
             markup_back = types.InlineKeyboardMarkup()
             markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='start'))
             bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
-            bot.register_next_step_handler(call.message, lambda m: process_user_redeem_code(m.chat.id, m.text))
+            bot.register_next_step_handler(call.message, process_user_redeem_input)
 
         elif data == 'admin_panel' and chat_id == ADMIN_ID:
             admin_panel_shortcut(chat_id, message_id)
@@ -1914,6 +1890,7 @@ def query(call):
             cat_key = data.replace('addsrv_cat_', '')
             temp_add_service[chat_id] = {'category': cat_key}
             
+            # إذا كان القسم هو الانستغرام، نطلب من الأدمن تحديد القسم الفرعي أولاً!
             if cat_key == 'cat_insta':
                 markup = types.InlineKeyboardMarkup(row_width=1)
                 markup.add(
@@ -2335,7 +2312,7 @@ def query(call):
                 'tg_opt_vip_30d': ['tg_vip_30d_1k', 'tg_vip_30d_2k', 'tg_vip_30d_5k'],
                 'tg_opt_bot_start': ['tg_bot_start_1k', 'tg_bot_start_2k', 'tg_bot_start_5k'],
                 'tg_opt_no_drop': ['tg_vip_no_drop_1k', 'tg_vip_no_drop_2k', 'tg_vip_no_drop_5k'],
-                'tg_boost_opt': ['tg_boost_1d_1k', 'tg_boost_1d_2k', 'tg_boost_1d_5k']
+                'tg_opt_boost': ['tg_boost_1d_1k', 'tg_boost_1d_2k', 'tg_boost_1d_5k']
             }
             if opt_type in keys_map:
                 group_keys = keys_map[opt_type]
@@ -2731,7 +2708,7 @@ def process_usdt_proof_input(message):
     bot.send_message(chat_id, "✅ **تم إرسال إشعار التحويل إلى الإدارة بنجاح!**\nسيتم مراجعة العملية وإضافة النقاط إلى رصيدك بأقرب وقت ⏳", parse_mode="Markdown")
     main_menu(chat_id)
 
-@bot.message_handler(func=lambda message: message.chat.id == ADMIN_ID and message.text and not message.text.startswith('/') and any(w in message.text for w in ['تحويل', 'رصيد', 'ناجح', 'دينار', 'ألف']))
+@bot.message_handler(func=lambda message: message.chat.id == ADMIN_ID and message.text and not message.text.startswith('/'))
 def handle_incoming_sms_forward(message):
     text = message.text.strip()
     
@@ -2866,7 +2843,7 @@ def step_srv_save_final(message):
             'btn_label': srv['name'][:30],
             'service_id': srv['service_id'], 
             'category': srv['category'],
-            'subcat': srv.get('subcat'),
+            'subcat': srv.get('subcat'), # حفظ القسم الفرعي للانستغرام إن وجد
             'is_custom_tiers': True, 
             'tiers': tiers
         }
@@ -2877,7 +2854,7 @@ def step_srv_save_final(message):
             "val_text": json.dumps(custom_only, ensure_ascii=False)
         }, on_conflict="key").execute()
         
-        bot.send_message(chat_id, "✅ **تمت إضافة وحفظ الخدمة بالتيرات بنجاح!**", parse_mode="Markdown")
+        bot.send_message(chat_id, "✅ **تمت إضافة وحفظ الخدمة بالتيرات بنجاح داخل القسم المحدد!**", parse_mode="Markdown")
         del temp_add_service[chat_id]
     except Exception as e:
         bot.send_message(chat_id, f"❌ حدث خطأ أثناء الحفظ: {e}")
@@ -3041,6 +3018,43 @@ def process_transfer_amount(message):
     except ValueError:
         bot.send_message(chat_id, "⚠️ أدخل أرقاماً صحيحة فقط.")
 
+def process_user_redeem_input(message):
+    chat_id = message.chat.id
+    raw_code = message.text.strip().upper()
+    
+    res = supabase.table("vouchers").select("amount").eq("code", raw_code).execute()
+    if res.data:
+        amt = res.data[0]['amount']
+        update_points(chat_id, amt, is_recharge=True)
+        supabase.table("vouchers").delete().eq("code", raw_code).execute()
+        bot.send_message(chat_id, f"🎉 **تم شحن {amt} نقطة برصيدك بنجاح!**", parse_mode="Markdown")
+        return
+
+    res_gift = supabase.table("gift_codes").select("*").eq("code", raw_code).execute()
+    if res_gift.data:
+        g = res_gift.data[0]
+        used_cnt = g.get('used_count', 0)
+        max_u = g.get('max_uses', 1)
+        
+        if used_cnt >= max_u:
+            bot.send_message(chat_id, "❌ **انتهت كمية استخدام هذا الكود!**", parse_mode="Markdown")
+            return
+            
+        res_used = supabase.table("gift_claims").select("*").eq("code", raw_code).eq("user_id", chat_id).execute()
+        if res_used.data:
+            bot.send_message(chat_id, "⚠️ **لقد قمت باستخدام هذا الكود مسبقاً!**", parse_mode="Markdown")
+            return
+
+        amt = float(g['points'])
+        update_points(chat_id, amt, is_recharge=True)
+        supabase.table("gift_codes").update({"used_count": used_cnt + 1}).eq("code", raw_code).execute()
+        supabase.table("gift_claims").insert({"code": raw_code, "user_id": chat_id}).execute()
+        
+        bot.send_message(chat_id, f"🎉 **مبروك! تم استبدال الكود وحصلت على ({amt}) نقطة بنجاح!**", parse_mode="Markdown")
+        return
+
+    bot.send_message(chat_id, "❌ الكود غير صحيح أو انتهت صلاحيته.")
+
 @bot.message_handler(commands=['start', 'redeem', 'admin'])
 def handle_commands(message):
     chat_id = message.chat.id
@@ -3053,18 +3067,14 @@ def handle_commands(message):
         args = text.split()
         param = args[1] if len(args) > 1 else None
         
-        is_card_code = param and param.startswith('CARD-')
-        referrer_id = param if param and not is_card_code and param != str(chat_id) and param.isdigit() else None
-
-        # 1. تسجيل المستخدم أولاً
-        register_user_if_new(chat_id, message.from_user.first_name, message.from_user.username, referrer_id)
-
-        # 2. إذا دخل المستخدم عبر رابط كود شحن، قم بشحنه فوراً ولا تقاطعه باشتراك إجباري لكي لا يضيع الكود
-        if is_card_code:
-            process_user_redeem_code(chat_id, param)
+        if param and param.startswith('CARD-'):
+            message.text = param
+            process_user_redeem_input(message)
             return
 
-        # 3. فحص القنوات الإلزامية للمستخدمين العاديين
+        referrer_id = param if param and param != str(chat_id) and param.isdigit() else None
+        register_user_if_new(chat_id, message.from_user.first_name, message.from_user.username, referrer_id)
+        
         if chat_id != ADMIN_ID:
             try:
                 if not check_sub(chat_id):
@@ -3072,7 +3082,7 @@ def handle_commands(message):
                     for i in range(len(CHANNELS)):
                         markup.add(types.InlineKeyboardButton("اشترك في القناة 📢", url=CHANNEL_LINKS[i]))
                     markup.add(types.InlineKeyboardButton("تحققت من الاشتراك ✅", callback_data='start'))
-                    bot.send_message(chat_id, "عذراً، يجب عليك الاشتراك في القناة أولاً لتتمكن من استخدام البوت:", reply_markup=markup)
+                    bot.send_message(chat_id, "عذراً، يجب عليك الاشتراك في القناة أولاً:", reply_markup=markup)
                     return
             except Exception:
                 pass
@@ -3082,12 +3092,11 @@ def handle_commands(message):
     elif text.startswith('/redeem'):
         args = text.split(maxsplit=1)
         if len(args) > 1:
-            process_user_redeem_code(chat_id, args[1])
+            message.text = args[1]
+            process_user_redeem_input(message)
 
     elif text.startswith('/admin') and chat_id == ADMIN_ID:
         admin_panel_shortcut(chat_id)
-
-
 
 if __name__ == "__main__":
     print("🚀 Bot running successfully!")
