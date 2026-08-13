@@ -3088,6 +3088,7 @@ def handle_commands(message):
         admin_panel_shortcut(chat_id)
 
 
+
 if __name__ == "__main__":
     print("🚀 Bot running successfully!")
     bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
