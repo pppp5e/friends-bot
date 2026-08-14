@@ -882,6 +882,32 @@ def query(call):
             pass
 
         if chat_id == ADMIN_ID:
+            if data.startswith('admin_demote_'):
+                target_uid = int(data.replace('admin_demote_', ''))
+                demote_user_from_reseller(ADMIN_ID, target_uid)
+                bot.answer_callback_query(call.id, "✅ تم إلغاء رتبة الوكيل بنجاح!", show_alert=True)
+                try:
+                    bot.edit_message_text(call.message.text + "\n\n❌ **[تم إلغاء رتبة الوكيل]**", chat_id, message_id)
+                except Exception:
+                    pass
+                return
+
+            elif data.startswith('admin_promote_single_'):
+                target_uid = int(data.replace('admin_promote_single_', ''))
+                promote_user_to_reseller(ADMIN_ID, target_uid)
+                bot.answer_callback_query(call.id, "✅ تم ترقية المستخدم إلى وكيل معتمد بنجاح!", show_alert=True)
+                try:
+                    bot.edit_message_text(call.message.text + "\n\n✅ **[تمت الترقية إلى وكيل معتمد]**", chat_id, message_id)
+                except Exception:
+                    pass
+                return
+
+            if data in ['start', 'back_start', 'admin_panel']:
+                admin_panel_shortcut(chat_id, message_id)
+                return
+            elif data == 'adm_manage_services':
+                ...
+
             if data in ['start', 'back_start', 'admin_panel']:
                 admin_panel_shortcut(chat_id, message_id)
                 return
