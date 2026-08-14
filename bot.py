@@ -1519,9 +1519,14 @@ def query(call):
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'cat_insta'
             markup = types.InlineKeyboardMarkup(row_width=1)
+            added_keys = set()
             
             for k, v in SERVICES.items():
                 if v.get('category') == 'cat_insta' and v.get('subcat') == 'fol':
+                    if k in added_keys:
+                        continue
+                    added_keys.add(k)
+                    
                     s_name = v.get('name', 'خدمة')
                     s_price = v.get('price', 0)
                     if is_adm_maint:
@@ -1541,8 +1546,10 @@ def query(call):
         elif data == 'open_flash_fol':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            added_keys = set()
             for k in ['flash_fol_1k', 'flash_fol_2k', 'flash_fol_5k']:
-                if k in SERVICES:
+                if k in SERVICES and k not in added_keys:
+                    added_keys.add(k)
                     s_data = SERVICES[k]
                     if is_adm_maint:
                         st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
@@ -1559,8 +1566,10 @@ def query(call):
         elif data == 'insta_fol_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            added_keys = set()
             for k in ['buy_fol_1k', 'buy_fol_2k', 'buy_fol_3k', 'buy_fol_4k', 'buy_fol_5k', 'buy_fol_10k']:
-                if k in SERVICES:
+                if k in SERVICES and k not in added_keys:
+                    added_keys.add(k)
                     s_data = SERVICES[k]
                     if is_adm_maint:
                         st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
@@ -1577,8 +1586,10 @@ def query(call):
         elif data == 'open_dragon_fol':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            added_keys = set()
             for k in ['dragon_fol_1k', 'dragon_fol_2k', 'dragon_fol_5k']:
-                if k in SERVICES:
+                if k in SERVICES and k not in added_keys:
+                    added_keys.add(k)
                     s_data = SERVICES[k]
                     if is_adm_maint:
                         st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
@@ -1595,9 +1606,14 @@ def query(call):
         elif data == 'open_like_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            added_keys = set()
             
             for k, v in SERVICES.items():
-                if v.get('category') == 'cat_insta' and v.get('subcat') == 'like':
+                if v.get('category') == 'cat_insta' and (v.get('subcat') == 'like' or k.startswith('buy_like_')):
+                    if k in added_keys:
+                        continue
+                    added_keys.add(k)
+                    
                     s_name = v.get('name', 'خدمة')
                     s_price = v.get('price', 0)
                     if is_adm_maint:
@@ -1605,18 +1621,9 @@ def query(call):
                         markup.add(types.InlineKeyboardButton(f"{s_name} - {st}", callback_data=f"toggle_maint_{k}"))
                     else:
                         if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
-                            markup.add(types.InlineKeyboardButton(f"{v.get('btn_label', s_name)} ({s_price} ن)", callback_data=k))
-
-            for k in ['buy_like_1k', 'buy_like_2k', 'buy_like_5k', 'buy_like_10k']:
-                if k in SERVICES:
-                    s_data = SERVICES[k]
-                    if is_adm_maint:
-                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
-                        markup.add(types.InlineKeyboardButton(f"{s_data['name']} - {st}", callback_data=f"toggle_maint_{k}"))
-                    else:
-                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
-                            btn_text = f"{s_data.get('btn_label', s_data['name'])} ({s_data.get('price', 0)} ن)"
+                            btn_text = f"{v.get('btn_label', s_name)} ({s_price} ن)"
                             markup.add(types.InlineKeyboardButton(btn_text, callback_data=k))
+
             if not is_adm_maint:
                 markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك", callback_data="custom_buy_like_1k"))
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='cat_insta'))
@@ -1625,9 +1632,14 @@ def query(call):
         elif data == 'open_view_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            added_keys = set()
             
             for k, v in SERVICES.items():
-                if v.get('category') == 'cat_insta' and v.get('subcat') == 'view':
+                if v.get('category') == 'cat_insta' and (v.get('subcat') == 'view' or k.startswith('buy_view_')):
+                    if k in added_keys:
+                        continue
+                    added_keys.add(k)
+                    
                     s_name = v.get('name', 'خدمة')
                     s_price = v.get('price', 0)
                     if is_adm_maint:
@@ -1635,18 +1647,9 @@ def query(call):
                         markup.add(types.InlineKeyboardButton(f"{s_name} - {st}", callback_data=f"toggle_maint_{k}"))
                     else:
                         if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
-                            markup.add(types.InlineKeyboardButton(f"{v.get('btn_label', s_name)} ({s_price} ن)", callback_data=k))
-
-            for k in ['buy_view_1k', 'buy_view_2k', 'buy_view_3k', 'buy_view_4k', 'buy_view_5k']:
-                if k in SERVICES:
-                    s_data = SERVICES[k]
-                    if is_adm_maint:
-                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
-                        markup.add(types.InlineKeyboardButton(f"{s_data['name']} - {st}", callback_data=f"toggle_maint_{k}"))
-                    else:
-                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
-                            btn_text = f"{s_data.get('btn_label', s_data['name'])} ({s_data.get('price', 0)} ن)"
+                            btn_text = f"{v.get('btn_label', s_name)} ({s_price} ن)"
                             markup.add(types.InlineKeyboardButton(btn_text, callback_data=k))
+
             if not is_adm_maint:
                 markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك", callback_data="custom_buy_view_1k"))
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='cat_insta'))
@@ -1655,9 +1658,14 @@ def query(call):
         elif data == 'open_share_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            added_keys = set()
             
             for k, v in SERVICES.items():
-                if v.get('category') == 'cat_insta' and v.get('subcat') == 'share':
+                if v.get('category') == 'cat_insta' and (v.get('subcat') == 'share' or k.startswith('buy_share_')):
+                    if k in added_keys:
+                        continue
+                    added_keys.add(k)
+                    
                     s_name = v.get('name', 'خدمة')
                     s_price = v.get('price', 0)
                     if is_adm_maint:
@@ -1665,18 +1673,9 @@ def query(call):
                         markup.add(types.InlineKeyboardButton(f"{s_name} - {st}", callback_data=f"toggle_maint_{k}"))
                     else:
                         if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
-                            markup.add(types.InlineKeyboardButton(f"{v.get('btn_label', s_name)} ({s_price} ن)", callback_data=k))
-
-            for k in ['buy_share_1k', 'buy_share_2k', 'buy_share_3k', 'buy_share_4k', 'buy_share_5k', 'buy_share_10k']:
-                if k in SERVICES:
-                    s_data = SERVICES[k]
-                    if is_adm_maint:
-                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
-                        markup.add(types.InlineKeyboardButton(f"{s_data['name']} - {st}", callback_data=f"toggle_maint_{k}"))
-                    else:
-                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
-                            btn_text = f"{s_data.get('btn_label', s_data['name'])} ({s_data.get('price', 0)} ن)"
+                            btn_text = f"{v.get('btn_label', s_name)} ({s_price} ن)"
                             markup.add(types.InlineKeyboardButton(btn_text, callback_data=k))
+
             if not is_adm_maint:
                 markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك", callback_data="custom_buy_share_1k"))
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='cat_insta'))
@@ -1685,8 +1684,10 @@ def query(call):
         elif data == 'pubg_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            added_keys = set()
             for k in ['pubg_60', 'pubg_120', 'pubg_180', 'pubg_336', 'pubg_688', 'pubg_1170']:
-                if k in SERVICES:
+                if k in SERVICES and k not in added_keys:
+                    added_keys.add(k)
                     s_data = SERVICES[k]
                     if is_adm_maint:
                         st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
@@ -1701,8 +1702,10 @@ def query(call):
         elif data == 'ff_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            added_keys = set()
             for k in ['ff_100', 'ff_210', 'ff_530', 'ff_1080']:
-                if k in SERVICES:
+                if k in SERVICES and k not in added_keys:
+                    added_keys.add(k)
                     s_data = SERVICES[k]
                     if is_adm_maint:
                         st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
@@ -1717,8 +1720,10 @@ def query(call):
         elif data == 'ludo_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            added_keys = set()
             for k in ['ludo_100', 'ludo_500']:
-                if k in SERVICES:
+                if k in SERVICES and k not in added_keys:
+                    added_keys.add(k)
                     s_data = SERVICES[k]
                     if is_adm_maint:
                         st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
@@ -1733,8 +1738,10 @@ def query(call):
         elif data == 'coc_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
+            added_keys = set()
             for k in ['coc_500', 'coc_1200']:
-                if k in SERVICES:
+                if k in SERVICES and k not in added_keys:
+                    added_keys.add(k)
                     s_data = SERVICES[k]
                     if is_adm_maint:
                         st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
@@ -1991,13 +1998,12 @@ def query(call):
                 bot.answer_callback_query(call.id, "تعذر جلب الرصيد من المزود حالياً.", show_alert=True)
 
         elif data == 'adm_force_sync_prices' and chat_id == ADMIN_ID:
+            bot.answer_callback_query(call.id, "⏳ جاري الاتصال بالمزود وجلب الأسعار...", show_alert=False)
             success, result = sync_prices_from_api_logic()
             if success:
-                bot.answer_callback_query(call.id, f"✅ تمت مزامنة وتحديث ({result}) خدمة بنجاح!", show_alert=True)
                 bot.send_message(chat_id, f"🔄 **تمت مزامنة الأسعار من موقع DarkFollow وتحديثها بنجاح!**\n📊 عدد الخدمات المحدثة: `{result}` خدمة.", parse_mode="Markdown")
             else:
-                bot.answer_callback_query(call.id, "❌ فشلت عملية المزامنة مع المزود.", show_alert=True)
-                bot.send_message(chat_id, f"❌ **تعذر إتمام المزامنة:**\n`{result}`", parse_mode="Markdown")
+                bot.send_message(chat_id, f"❌ **فشلت عملية المزامنة مع المزود:**\n`{result}`", parse_mode="Markdown")
 
         elif data == 'adm_edit_single_price' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=2)
@@ -2867,7 +2873,7 @@ def step_srv_save_final(message):
         return
 
     srv = temp_add_service.get(chat_id)
-    if notsrv := not srv: 
+    if not srv: 
         return
     try:
         tiers = []
