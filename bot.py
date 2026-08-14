@@ -136,7 +136,9 @@ def sync_prices_from_api_logic():
                         v['price'] = new_calculated_price
                         updated_count += 1
             return True, updated_count
-        return False, 0
+        elif isinstance(api_services, dict) and "error" in api_services:
+            return False, api_services["error"]
+        return False, "رد غير متوقع من المزود"
     except Exception as e:
         return False, str(e)
 
@@ -159,7 +161,7 @@ def check_order_live_status(order_id, api_order_id):
     if str(api_order_id) == "0" or not str(api_order_id).isdigit():
         return "📦 الطلب يدوي / قيد المعالجة من قبل الدعم."
     res_status = get_status(api_order_id)
-    if res_status and 'status' in res_status:
+    if res_status and isinstance(res_status, dict) and 'status' in res_status:
         st = res_status['status']
         rem = res_status.get('remains', 'غير محدد')
         start_cnt = res_status.get('start_count', 'غير محدد')
@@ -288,6 +290,7 @@ def promote_user_to_reseller(admin_id, target_uid):
         bot.send_message(target_uid, "🏆 **مبروك! تم ترقية حسابك إلى رتبة (وكيل معتمد) في البوت وتحصل الآن على تخفيضات إضافية ضخمة على جميع الخدمات!**", parse_mode="Markdown")
     except Exception as e:
         print(f"Error promoting reseller: {e}")
+
 def demote_user_from_reseller(admin_id, target_uid):
     if admin_id != ADMIN_ID:
         return
@@ -297,7 +300,6 @@ def demote_user_from_reseller(admin_id, target_uid):
         bot.send_message(target_uid, "⚠️ **تنبيه: تم تغيير رتبة حسابك وإلغاء صفة (وكيل معتمد) من البوت.**", parse_mode="Markdown")
     except Exception as e:
         print(f"Error demoting reseller: {e}")
-
         
 def get_next_order_id():
     try:
@@ -765,7 +767,7 @@ def auto_check_orders_and_notifications():
             for order in pending_orders:
                 try:
                     res_status = get_status(order['api_order_id'])
-                    if res_status and 'status' in res_status:
+                    if res_status and isinstance(res_status, dict) and 'status' in res_status:
                         new_status = res_status['status']
                         status_ar = "قيد التنفيذ"
                         
@@ -835,9 +837,10 @@ def main_menu(chat_id, message_id=None):
         types.InlineKeyboardButton("💰 شحن رصيد آسياسيل (تلقائي)", callback_data="asiacell_recharge_menu"),
         types.InlineKeyboardButton("🪙 شحن رصيد عبر USDT", callback_data="usdt_recharge_menu")
     )
-    markup.add(
-        types.InlineKeyboardButton("👨‍💻 الدعم الفني", url=SUPPORT_LINK)
-    )
+    if not is_item_in_maintenance('support_btn') or chat_id == ADMIN_ID:
+        markup.add(
+            types.InlineKeyboardButton("👨‍💻 الدعم الفني", url=SUPPORT_LINK)
+        )
     
     if chat_id == ADMIN_ID:
         markup.add(types.InlineKeyboardButton("⚙️ لوحة الإدارة", callback_data="admin_panel"))
@@ -902,13 +905,7 @@ def query(call):
                     pass
                 return
 
-            if data in ['start', 'back_start', 'admin_panel']:
-                admin_panel_shortcut(chat_id, message_id)
-                return
-            elif data == 'adm_manage_services':
-                ...
-
-            if data in ['start', 'back_start', 'admin_panel']:
+            elif data in ['start', 'back_start', 'admin_panel']:
                 admin_panel_shortcut(chat_id, message_id)
                 return
             elif data == 'adm_manage_services':
@@ -1008,7 +1005,6 @@ def query(call):
                     pass
                 return
 
-            # معالجة اختيار القسم الفرعي لانستغرام عند إضافة خدمة جديدة
             elif data.startswith('subcat_insta_') and chat_id == ADMIN_ID:
                 subcat_choice = data.replace('subcat_insta_', '')
                 temp_add_service[chat_id]['subcat'] = subcat_choice
@@ -1224,7 +1220,6 @@ def query(call):
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'back_start'
             markup = types.InlineKeyboardMarkup(row_width=1)
             
-            # منع ظهور الخدمات المخصصة في الواجهة الرئيسية للانستغرام لتظهر حصرياً داخل أقسامها الفرعية
             markup.add(
                 types.InlineKeyboardButton("⚡ فلاش متابعين انستغرام الأسرع في العالم", callback_data='open_flash_fol'),
                 types.InlineKeyboardButton("🐉 دراجون متابعين انستا تحديث جديد", callback_data='open_dragon_fol'),
@@ -1525,7 +1520,6 @@ def query(call):
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'cat_insta'
             markup = types.InlineKeyboardMarkup(row_width=1)
             
-            # جلب الخدمات المضافة خصخصيصاً لقسم المتابعين (subcat == 'fol')
             for k, v in SERVICES.items():
                 if v.get('category') == 'cat_insta' and v.get('subcat') == 'fol':
                     s_name = v.get('name', 'خدمة')
@@ -1602,7 +1596,6 @@ def query(call):
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             
-            # جلب الخدمات المضافة خصيصاً لقسم اللايكات (subcat == 'like')
             for k, v in SERVICES.items():
                 if v.get('category') == 'cat_insta' and v.get('subcat') == 'like':
                     s_name = v.get('name', 'خدمة')
@@ -1633,7 +1626,6 @@ def query(call):
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             
-            # جلب الخدمات المضافة خصيصاً لقسم المشاهدات (subcat == 'view')
             for k, v in SERVICES.items():
                 if v.get('category') == 'cat_insta' and v.get('subcat') == 'view':
                     s_name = v.get('name', 'خدمة')
@@ -1664,7 +1656,6 @@ def query(call):
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             markup = types.InlineKeyboardMarkup(row_width=1)
             
-            # جلب الخدمات المضافة خصيصاً لقسم المشاركات (subcat == 'share')
             for k, v in SERVICES.items():
                 if v.get('category') == 'cat_insta' and v.get('subcat') == 'share':
                     s_name = v.get('name', 'خدمة')
@@ -1926,7 +1917,6 @@ def query(call):
             cat_key = data.replace('addsrv_cat_', '')
             temp_add_service[chat_id] = {'category': cat_key}
             
-            # إذا كان القسم هو الانستغرام، نطلب من الأدمن تحديد القسم الفرعي أولاً!
             if cat_key == 'cat_insta':
                 markup = types.InlineKeyboardMarkup(row_width=1)
                 markup.add(
@@ -2573,7 +2563,6 @@ def process_admin_user_search(message):
         types.InlineKeyboardButton("💬 إرسال رسالة مباشرة", callback_data=f"admin_msg_{uid}")
     )
     
-    # إضافة زر الإلغاء أو الترقية حسب حالة العضو
     if is_res == 1:
         markup.add(types.InlineKeyboardButton("❌ إلغاء رتبة وكيل معتمد", callback_data=f"admin_demote_{uid}"))
     else:
@@ -2647,37 +2636,43 @@ def process_admin_broadcast_execution(message):
     del admin_states[chat_id]
     
     try:
-        res = supabase.table("users").select("user_id, last_order_ts").execute()
-        users = res.data if res.data else []
-    except Exception:
-        users = []
+        page = 0
+        batch_size = 1000
+        success = 0
+        now = time.time()
+        
+        while True:
+            res = supabase.table("users").select("user_id, last_order_ts").range(page * batch_size, (page + 1) * batch_size - 1).execute()
+            users = res.data if res.data else []
+            if not users:
+                break
 
-    if not users:
-        bot.send_message(chat_id, "❌ لا يوجد مستخدمين لإذاعة الرسالة لهم.")
-        return
-
-    success = 0
-    now = time.time()
-    for u in users:
-        uid = u['user_id']
-        if b_type == 'inactive':
-            last_o = u.get('last_order_ts', 0)
-            if now - last_o < 604800:
-                continue
-                
-        try:
-            sent_msg = bot.copy_message(chat_id=uid, from_chat_id=chat_id, message_id=message.message_id)
-            if b_type == 'pin':
+            for u in users:
+                uid = u['user_id']
+                if b_type == 'inactive':
+                    last_o = u.get('last_order_ts', 0)
+                    if now - last_o < 604800:
+                        continue
+                        
                 try:
-                    bot.pin_chat_message(chat_id=uid, message_id=sent_msg.message_id)
+                    sent_msg = bot.copy_message(chat_id=uid, from_chat_id=chat_id, message_id=message.message_id)
+                    if b_type == 'pin':
+                        try:
+                            bot.pin_chat_message(chat_id=uid, message_id=sent_msg.message_id)
+                        except Exception:
+                            pass
+                    success += 1
+                    time.sleep(0.05)
                 except Exception:
                     pass
-            success += 1
-            time.sleep(0.05)
-        except Exception:
-            pass
             
-    bot.send_message(chat_id, f"✅ **تمت الإذاعة بنجاح!**\nوصلت إلى: `{success}` مستخدم.", parse_mode="Markdown")
+            if len(users) < batch_size:
+                break
+            page += 1
+
+        bot.send_message(chat_id, f"✅ **تمت الإذاعة بنجاح!**\nوصلت إلى: `{success}` مستخدم.", parse_mode="Markdown")
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ حدث خطأ أثناء الإذاعة: {e}")
 
 def process_asiacell_phone_input(message):
     chat_id = message.chat.id
@@ -2757,41 +2752,37 @@ def process_usdt_proof_input(message):
 def handle_incoming_sms_forward(message):
     text = message.text.strip()
     
-    all_numbers = re.findall(r'\d+', text.replace(',', ''))
-    if not all_numbers:
+    if "تحويل" not in text and "رصيد" not in text and "استلام" not in text and not re.search(r'من الرقم', text):
         return
     
-    sender_phone_in_sms = None
-    for num in all_numbers:
-        if (num.startswith('07') and len(num) == 11) or (num.startswith('7') and len(num) == 10):
-            if len(num) == 10:
-                sender_phone_in_sms = "0" + num
-            else:
-                sender_phone_in_sms = num
-            break
+    phone_match = re.search(r'(0?7\d{9})', text)
+    if not phone_match:
+        return
+    sender_phone = phone_match.group(1)
+    if len(sender_phone) == 10:
+        sender_phone = "0" + sender_phone
 
+    amount_match = re.search(r'(\d+)\s*(ألف|دينار|الف)', text)
     transfer_amount_k = None
-    for num_str in all_numbers:
-        val = int(num_str)
-        if val in range(1, 11) or val in [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]:
-            if val >= 1000:
-                transfer_amount_k = val // 1000
-            else:
-                transfer_amount_k = val
-            break
+    if amount_match:
+        transfer_amount_k = int(amount_match.group(1))
+    else:
+        all_nums = re.findall(r'\b([1-9]|10)\b', text)
+        if all_nums:
+            transfer_amount_k = int(all_nums[0])
 
-    if not transfer_amount_k or not sender_phone_in_sms:
+    if not transfer_amount_k or not sender_phone:
         return
 
     matched_user_id = None
     points_to_add = 0.0
-    clean_sms_phone = sender_phone_in_sms[-10:]
+    clean_sms_phone = sender_phone[-10:]
 
     for uid, state in list(user_recharge_states.items()):
         if state['amount_k'] == transfer_amount_k:
             state_phone = state.get('phone', '')
             clean_state_phone = state_phone[-10:]
-            if not clean_state_phone or clean_sms_phone == clean_state_phone:
+            if clean_state_phone and clean_sms_phone == clean_state_phone:
                 matched_user_id = uid
                 points_to_add = state['points']
                 del user_recharge_states[uid]
@@ -2855,21 +2846,32 @@ def step_srv_id(message):
         temp_add_service[chat_id]['service_id'] = int(message.text.strip())
         msg = bot.send_message(
             chat_id, 
-            "⚙️ أرسل التيرات بالصيغة:\n`الكمية:السعر:كمية_API`\n\n*مثال:* `1000:1.5:1100 2000:3.0:2200`", 
+            "⚙️ أرسل التيرات بالصيغة:\n`الكمية:السعر:كمية_API`\n\n*مثال:* `1000:1.5:1100 2000:3.0:2200`\n\n*(أو أرسل كلمة `إلغاء` للخروج)*", 
             parse_mode="Markdown"
         )
         bot.register_next_step_handler(msg, step_srv_save_final)
     except ValueError:
-        bot.send_message(chat_id, "⚠️ أدخل رقماً صحيحاً للـ ID.")
+        markup_back = types.InlineKeyboardMarkup()
+        markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_manage_services'))
+        msg = bot.send_message(chat_id, "⚠️ أدخل رقماً صحيحاً للـ ID:", reply_markup=markup_back)
+        bot.register_next_step_handler(msg, step_srv_id)
 
 def step_srv_save_final(message):
     chat_id = message.chat.id
+    text_val = message.text.strip()
+    
+    if text_val == "إلغاء":
+        if chat_id in temp_add_service:
+            del temp_add_service[chat_id]
+        bot.send_message(chat_id, "❌ تم إلغاء إضافة الخدمة.")
+        return
+
     srv = temp_add_service.get(chat_id)
-    if not srv: 
+    if notsrv := not srv: 
         return
     try:
         tiers = []
-        for p in message.text.strip().split():
+        for p in text_val.split():
             sub = p.split(':')
             if len(sub) == 3:
                 tiers.append({
@@ -2879,7 +2881,10 @@ def step_srv_save_final(message):
                 })
         
         if not tiers:
-            bot.send_message(chat_id, "⚠️ الصيغة غير صحيحة! يرجى إعادة إرسال التيرات بالشكل المطلوب.")
+            markup_back = types.InlineKeyboardMarkup()
+            markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_manage_services'))
+            msg = bot.send_message(chat_id, "⚠️ الصيغة غير صحيحة! يرجى إعادة إرسال التيرات بالشكل المطلوب:", reply_markup=markup_back)
+            bot.register_next_step_handler(msg, step_srv_save_final)
             return
             
         key = f"custom_srv_{int(time.time())}"
@@ -2888,7 +2893,7 @@ def step_srv_save_final(message):
             'btn_label': srv['name'][:30],
             'service_id': srv['service_id'], 
             'category': srv['category'],
-            'subcat': srv.get('subcat'), # حفظ القسم الفرعي للانستغرام إن وجد
+            'subcat': srv.get('subcat'),
             'is_custom_tiers': True, 
             'tiers': tiers
         }
@@ -2902,7 +2907,10 @@ def step_srv_save_final(message):
         bot.send_message(chat_id, "✅ **تمت إضافة وحفظ الخدمة بالتيرات بنجاح داخل القسم المحدد!**", parse_mode="Markdown")
         del temp_add_service[chat_id]
     except Exception as e:
-        bot.send_message(chat_id, f"❌ حدث خطأ أثناء الحفظ: {e}")
+        markup_back = types.InlineKeyboardMarkup()
+        markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_manage_services'))
+        msg = bot.send_message(chat_id, f"❌ حدث خطأ أثناء الحفظ: {e}\nيرجى إعادة إرسال التيرات بالصيغة الصحيحة:", reply_markup=markup_back)
+        bot.register_next_step_handler(msg, step_srv_save_final)
 
 def process_generic_custom_qty(message, base_service_key):
     chat_id = message.chat.id
