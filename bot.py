@@ -288,7 +288,17 @@ def promote_user_to_reseller(admin_id, target_uid):
         bot.send_message(target_uid, "🏆 **مبروك! تم ترقية حسابك إلى رتبة (وكيل معتمد) في البوت وتحصل الآن على تخفيضات إضافية ضخمة على جميع الخدمات!**", parse_mode="Markdown")
     except Exception as e:
         print(f"Error promoting reseller: {e}")
+def demote_user_from_reseller(admin_id, target_uid):
+    if admin_id != ADMIN_ID:
+        return
+    try:
+        supabase.table("users").update({"is_reseller": 0}).eq("user_id", target_uid).execute()
+        bot.send_message(admin_id, f"✅ تم إزالة رتبة (وكيل معتمد) عن المستخدم (`{target_uid}`) بنجاح!")
+        bot.send_message(target_uid, "⚠️ **تنبيه: تم تغيير رتبة حسابك وإلغاء صفة (وكيل معتمد) من البوت.**", parse_mode="Markdown")
+    except Exception as e:
+        print(f"Error demoting reseller: {e}")
 
+        
 def get_next_order_id():
     try:
         res = supabase.table("orders").select("last_id").eq("id", 1).execute()
@@ -2527,14 +2537,23 @@ def process_admin_user_search(message):
     pts = u.get('points', 0.0)
     recharged = u.get('total_recharged', 0.0)
     spent = u.get('total_spent', 0.0)
-    is_res = "نعم 🕶️" if u.get('is_reseller') == 0 else "وكيل معتمد 🏆"
+    is_res = int(u.get('is_reseller', 0))
+    
+    is_res_text = "وكيل معتمد 🏆" if is_res == 1 else "مستخدم عادي 👤"
     
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("💰 تعديل الرصيد (إضافة/خصم)", callback_data=f"admin_add_pts_{uid}"),
-        types.InlineKeyboardButton("💬 إرسال رسالة مباشرة", callback_data=f"admin_msg_{uid}"),
-        types.InlineKeyboardButton("🔙 لوحة الإدارة", callback_data="admin_panel")
+        types.InlineKeyboardButton("💬 إرسال رسالة مباشرة", callback_data=f"admin_msg_{uid}")
     )
+    
+    # إضافة زر الإلغاء أو الترقية حسب حالة العضو
+    if is_res == 1:
+        markup.add(types.InlineKeyboardButton("❌ إلغاء رتبة وكيل معتمد", callback_data=f"admin_demote_{uid}"))
+    else:
+        markup.add(types.InlineKeyboardButton("🕶️ ترقية إلى وكيل معتمد", callback_data=f"admin_promote_single_{uid}"))
+        
+    markup.add(types.InlineKeyboardButton("🔙 لوحة الإدارة", callback_data="admin_panel"))
     
     text = (
         f"👤 **معلومات المستخدم:**\n"
@@ -2545,7 +2564,7 @@ def process_admin_user_search(message):
         f"💰 الرصيد الحالي: `{pts}` نقطة\n"
         f"💳 إجمالي الشحن: `{recharged}` نقطة\n"
         f"🛍️ إجمالي الإنفاق: `{spent}` نقطة\n"
-        f"🎖️ رتبة الوكيل: {is_res}"
+        f"🎖️ رتبة الوكيل: {is_res_text}"
     )
     bot.send_message(chat_id, text, parse_mode="Markdown", reply_markup=markup)
 
