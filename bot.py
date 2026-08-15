@@ -339,56 +339,6 @@ def save_order(order_id, user_id, username, service, price, api_order_id="0", li
         print(f"Error saving order: {e}")
 
 SERVICES = {
-    'flash_fol_1k': {'name': 'فلاش متابعين 1k', 'btn_label': '1k', 'price': 2.0, 'cost': 1.0, 'service_id': 2051, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
-    'flash_fol_2k': {'name': 'فلاش متابعين 2k', 'btn_label': '2k', 'price': 4.0, 'cost': 2.0, 'service_id': 2051, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
-    'flash_fol_5k': {'name': 'فلاش متابعين 5k', 'btn_label': '5k', 'price': 12.0, 'cost': 6.0, 'service_id': 2051, 'qty': 5000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
-
-    'dragon_fol_1k': {'name': 'دراجون متابعين 1k', 'btn_label': '1k', 'price': 1.5, 'cost': 0.7, 'service_id': 1548, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
-    'dragon_fol_2k': {'name': 'دراجون متابعين 2k', 'btn_label': '2k', 'price': 3.0, 'cost': 1.4, 'service_id': 1548, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
-    'dragon_fol_5k': {'name': 'دراجون متابعين 5k', 'btn_label': '5k', 'price': 7.0, 'cost': 3.5, 'service_id': 1548, 'qty': 5000, 'category': 'cat_insta', 'subcat': 'fol', 'msg': 'أرسل رابط حسابك:'},
-
-    'tg_sub_20d_1k': {'name': 'أعضاء تليجرام (ضمان 20 يوم) 1k', 'btn_label': '1k', 'price': 5.9, 'cost': 5.4, 'service_id': 2035, 'qty': 1000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-    'tg_sub_20d_2k': {'name': 'أعضاء تليجرام (ضمان 20 يوم) 2k', 'btn_label': '2k', 'price': 11.8, 'cost': 10.8, 'service_id': 2035, 'qty': 2000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-    'tg_sub_20d_5k': {'name': 'أعضاء تليجرام (ضمان 20 يوم) 5k', 'btn_label': '5k', 'price': 29.5, 'cost': 27.0, 'service_id': 2035, 'qty': 5000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-
-    'tg_sub_fixed_1k': {'name': 'أعضاء تليجرام ثابت بدون نزول (ضمان دائم) 1k', 'btn_label': '1k', 'price': 12.0, 'cost': 8.0, 'service_id': 2033, 'qty': 1000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-    'tg_sub_fixed_2k': {'name': 'أعضاء تليجرام ثابت بدون نزول (ضمان دائم) 2k', 'btn_label': '2k', 'price': 24.0, 'cost': 16.0, 'service_id': 2033, 'qty': 2000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-    'tg_sub_fixed_5k': {'name': 'أعضاء تليجرام ثابت بدون نزول (ضمان دائم) 5k', 'btn_label': '5k', 'price': 60.0, 'cost': 40.0, 'service_id': 2033, 'qty': 5000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-
-    'tg_vip_30d_1k': {'name': 'أعضاء مميزون (قاعدة كبيرة) 1k', 'btn_label': '1k', 'price': 7.6, 'cost': 7.1, 'service_id': 2000, 'qty': 1000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-    'tg_vip_30d_2k': {'name': 'أعضاء مميزون (قاعدة كبيرة) 2k', 'btn_label': '2k', 'price': 15.2, 'cost': 14.2, 'service_id': 2000, 'qty': 2000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-    'tg_vip_30d_5k': {'name': 'أعضاء مميزون (قاعدة كبيرة) 5k', 'btn_label': '5k', 'price': 38.0, 'cost': 35.5, 'service_id': 2000, 'qty': 5000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-
-    'tg_bot_start_1k': {'name': 'ستارت بوت مميز 1k', 'btn_label': '1k', 'price': 6.1, 'cost': 5.6, 'service_id': 1821, 'qty': 1000, 'category': 'cat_telegram', 'msg': 'أرسل رابط البوت:'},
-    'tg_bot_start_2k': {'name': 'ستارت بوت مميز 2k', 'btn_label': '2k', 'price': 12.2, 'cost': 11.2, 'service_id': 1821, 'qty': 2000, 'category': 'cat_telegram', 'msg': 'أرسل رابط البوت:'},
-    'tg_bot_start_5k': {'name': 'ستارت بوت مميز 5k', 'btn_label': '5k', 'price': 30.5, 'cost': 28.0, 'service_id': 1821, 'qty': 5000, 'category': 'cat_telegram', 'msg': 'أرسل رابط البوت:'},
-
-    'tg_vip_no_drop_1k': {'name': 'أعضاء مميزون (بدون نزول) 1k', 'btn_label': '1k', 'price': 13.3, 'cost': 12.8, 'service_id': 1991, 'qty': 1000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-    'tg_vip_no_drop_2k': {'name': 'أعضاء مميزون (بدون نزول) 2k', 'btn_label': '2k', 'price': 26.6, 'cost': 25.6, 'service_id': 1991, 'qty': 2000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-    'tg_vip_no_drop_5k': {'name': 'أعضاء مميزون (بدون نزول) 5k', 'btn_label': '5k', 'price': 66.5, 'cost': 64.0, 'service_id': 1991, 'qty': 5000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة/المجموعة:'},
-
-    'tg_boost_1d_1k': {'name': 'تعزيز قنوات Boost 1k', 'btn_label': '1k', 'price': 39.5, 'cost': 39.0, 'service_id': 1757, 'qty': 1000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة للتعزيز:'},
-    'tg_boost_1d_2k': {'name': 'تعزيز قنوات Boost 2k', 'btn_label': '2k', 'price': 79.0, 'cost': 78.0, 'service_id': 1757, 'qty': 2000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة للتعزيز:'},
-    'tg_boost_1d_5k': {'name': 'تعزيز قنوات Boost 5k', 'btn_label': '5k', 'price': 197.5, 'cost': 195.0, 'service_id': 1757, 'qty': 5000, 'category': 'cat_telegram', 'msg': 'أرسل رابط القناة للتعزيز:'},
-
-    'buy_like_1k': {'name': 'لايكات 1k', 'btn_label': '1k', 'price': 1.0, 'cost': 0.4, 'service_id': 2010, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'like', 'msg': 'أرسل رابط البوست:'},
-    'buy_like_2k': {'name': 'لايكات 2k', 'btn_label': '2k', 'price': 2.0, 'cost': 0.8, 'service_id': 2010, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'like', 'msg': 'أرسل رابط البوست:'},
-    'buy_like_5k': {'name': 'لايكات 5k', 'btn_label': '5k', 'price': 5.0, 'cost': 2.0, 'service_id': 2010, 'qty': 5000, 'category': 'cat_insta', 'subcat': 'like', 'msg': 'أرسل رابط البوست:'},
-    'buy_like_10k': {'name': 'لايكات 10k', 'btn_label': '10k', 'price': 10.0, 'cost': 4.0, 'service_id': 2010, 'qty': 10000, 'category': 'cat_insta', 'subcat': 'like', 'msg': 'أرسل رابط البوست:'},
-
-    'buy_view_1k': {'name': 'مشاهدات 1k', 'btn_label': '1k', 'price': 0.2, 'cost': 0.05, 'service_id': 1840, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'view', 'msg': 'أرسل رابط الفيديو:'},
-    'buy_view_2k': {'name': 'مشاهدات 2k', 'btn_label': '2k', 'price': 0.4, 'cost': 0.10, 'service_id': 1840, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'view', 'msg': 'أرسل رابط الفيديو:'},
-    'buy_view_3k': {'name': 'مشاهدات 3k', 'btn_label': '3k', 'price': 0.6, 'cost': 0.15, 'service_id': 1840, 'qty': 3000, 'category': 'cat_insta', 'subcat': 'view', 'msg': 'أرسل رابط الفيديو:'},
-    'buy_view_4k': {'name': 'مشاهدات 4k', 'btn_label': '4k', 'price': 0.8, 'cost': 0.20, 'service_id': 1840, 'qty': 4000, 'category': 'cat_insta', 'subcat': 'view', 'msg': 'أرسل رابط الفيديو:'},
-    'buy_view_5k': {'name': 'مشاهدات 5k', 'btn_label': '5k', 'price': 1.0, 'cost': 0.25, 'service_id': 1840, 'qty': 5000, 'category': 'cat_insta', 'subcat': 'view', 'msg': 'أرسل رابط الفيديو:'},
-
-    'buy_share_1k': {'name': 'مشاركات 1k', 'btn_label': '1k', 'price': 1.2, 'cost': 0.5, 'service_id': 1842, 'qty': 1000, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
-    'buy_share_2k': {'name': 'مشاركات 2k', 'btn_label': '2k', 'price': 2.4, 'cost': 1.0, 'service_id': 1842, 'qty': 2000, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
-    'buy_share_3k': {'name': 'مشاركات 3k', 'btn_label': '3k', 'price': 3.6, 'cost': 1.5, 'service_id': 1842, 'qty': 3000, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
-    'buy_share_4k': {'name': 'مشاركات 4k', 'btn_label': '4k', 'price': 4.8, 'cost': 2.0, 'service_id': 1842, 'qty': 4000, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
-    'buy_share_5k': {'name': 'مشاركات 5k', 'btn_label': '5k', 'price': 6.0, 'cost': 2.5, 'service_id': 1842, 'qty': 5500, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
-    'buy_share_10k': {'name': 'مشاركات 10k', 'btn_label': '10k', 'price': 11.0, 'cost': 5.0, 'service_id': 1842, 'qty': 10000, 'category': 'cat_insta', 'subcat': 'share', 'msg': 'أرسل رابط المنشور:'},
-
     'buy_esim_month': {'name': 'شريحة eSIM شهر', 'btn_label': 'شهر', 'price': 15.0, 'cost': 10.0, 'service_id': 0, 'qty': 1, 'category': 'cat_esim'},
     'buy_esim_week': {'name': 'شريحة eSIM أسبوع', 'btn_label': 'أسبوع', 'price': 5.0, 'cost': 3.0, 'service_id': 0, 'qty': 1, 'category': 'cat_esim'},
 
@@ -681,7 +631,6 @@ def send_proof_to_channel(user_id, order_id, service_name, quantity=1, api_id="�
             f"👑 **عملية شراء جديدة بنجاح!**\n"
             f"━━━━━━━━━━━━━━━━━━━\n\n"
             f"🆔 **رقم الطلب:** `{order_id}`\n"
-            f"{api_info}"
             f"👤 **الزبون:** `{hidden_id}`\n"
             f"📦 **الخدمة / المنتج:** {service_name}\n"
             f"{qty_info}"
@@ -1221,8 +1170,6 @@ def query(call):
             markup = types.InlineKeyboardMarkup(row_width=1)
             
             markup.add(
-                types.InlineKeyboardButton("⚡ فلاش متابعين انستغرام الأسرع في العالم", callback_data='open_flash_fol'),
-                types.InlineKeyboardButton("🐉 دراجون متابعين انستا تحديث جديد", callback_data='open_dragon_fol'),
                 types.InlineKeyboardButton("👤 قسم المتابعين", callback_data='insta_fol_sub_menu'),
                 types.InlineKeyboardButton("❤️ قسم اللايكات", callback_data='open_like_menu'),
                 types.InlineKeyboardButton("👁️ قسم المشاهدات", callback_data='open_view_menu'),
@@ -1246,12 +1193,6 @@ def query(call):
                             markup.add(types.InlineKeyboardButton(f"{v.get('btn_label', v['name'])} ({v.get('price', 0)} ن)", callback_data=k))
 
             markup.add(
-                types.InlineKeyboardButton("🛡️ أعضاء تليجرام ثابت (بدون نزول)", callback_data='tg_opt_fixed'),
-                types.InlineKeyboardButton("👤 أعضاء تليجرام (ضمان 20 يوم)", callback_data='tg_opt_20d'),
-                types.InlineKeyboardButton("💎 أعضاء مميزون قاعدة كبيرة (ضمان 30 يوم)", callback_data='tg_opt_vip_30d'),
-                types.InlineKeyboardButton("🤖 ستارت بوت مميز (حسابات متصلة)", callback_data='tg_opt_bot_start'),
-                types.InlineKeyboardButton("🔥 أعضاء مميزون بدون نزول سريع", callback_data='tg_opt_no_drop'),
-                types.InlineKeyboardButton("🚀 تعزيز قنوات Boost (ضمان يوم)", callback_data='tg_opt_boost'),
                 types.InlineKeyboardButton("🔙 رجوع", callback_data=back_target)
             )
             update_menu_safely(bot, chat_id, message_id, 'cat_telegram', markup)
@@ -1427,9 +1368,6 @@ def query(call):
                 return
             markup = types.InlineKeyboardMarkup(row_width=1)
             markup.add(
-                types.InlineKeyboardButton("🔥 1000 متابع فلاش (2 ن)", callback_data='flash_fol_1k'),
-                types.InlineKeyboardButton("🛡️ أعضاء تليجرام ثابت 1k (12 ن)", callback_data='tg_sub_fixed_1k'),
-                types.InlineKeyboardButton("🟡 60 شدة ببجي (1.5 ن)", callback_data='pubg_60'),
                 types.InlineKeyboardButton("🔙 رجوع", callback_data='start')
             )
             update_menu_safely(bot, chat_id, message_id, 'top_services', markup)
@@ -1468,53 +1406,6 @@ def query(call):
             msg = bot.send_message(chat_id, "🔄 **أرسل الآيدي (ID) الخاص بالشخص المراد التحويل له:**", parse_mode="Markdown")
             bot.register_next_step_handler(msg, process_transfer_target_id)
 
-        elif data.startswith('tg_opt_'):
-            opt_type = data
-            markup = types.InlineKeyboardMarkup(row_width=1)
-            is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
-            back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'cat_telegram'
-
-            matched_services = {}
-            for k, v in SERVICES.items():
-                if v.get('category') == 'cat_telegram':
-                    if k.startswith('custom_srv_'):
-                        continue
-                    s_name = v.get('name', '')
-                    if opt_type == 'tg_opt_20d' and ('20' in s_name or '٢٠' in s_name):
-                        matched_services[k] = v
-                    elif opt_type == 'tg_opt_fixed' and ('ثابت' in s_name or 'دائم' in s_name):
-                        matched_services[k] = v
-                    elif opt_type == 'tg_opt_vip_30d' and ('مميزون' in s_name or 'قاعدة' in s_name) and '30' in s_name:
-                        matched_services[k] = v
-                    elif opt_type == 'tg_opt_bot_start' and 'ستارت' in s_name:
-                        matched_services[k] = v
-                    elif opt_type == 'tg_opt_no_drop' and 'بدون نزول' in s_name and 'مميزون' in s_name:
-                        matched_services[k] = v
-                    elif opt_type == 'tg_opt_boost' and ('boost' in s_name.lower() or 'تعزيز' in s_name):
-                        matched_services[k] = v
-
-            if matched_services:
-                first_srv_key = None
-                for k, s_data in matched_services.items():
-                    if not first_srv_key:
-                        first_srv_key = k
-                    if is_adm_maint:
-                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
-                        markup.add(types.InlineKeyboardButton(f"{s_data['name']} - {st}", callback_data=f"toggle_maint_{k}"))
-                    else:
-                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
-                            btn_text = f"{s_data.get('btn_label', s_data['name'])} ({s_data.get('price', 0)} ن)"
-                            markup.add(types.InlineKeyboardButton(btn_text, callback_data=k))
-                
-                if not is_adm_maint and first_srv_key:
-                    markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك", callback_data=f"custom_{first_srv_key}"))
-
-            if is_adm_maint:
-                markup.add(types.InlineKeyboardButton("✍️ تفعيل/إيقاف الكل بهذه الفئة", callback_data=f"maint_group_opt_{opt_type}"))
-
-            markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=back_target))
-            update_menu_safely(bot, chat_id, message_id, opt_type, markup)
-
         elif data == 'insta_fol_sub_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
             back_target = 'adm_maint_buttons_menu' if is_adm_maint else 'cat_insta'
@@ -1522,7 +1413,7 @@ def query(call):
             added_keys = set()
             
             for k, v in SERVICES.items():
-                if v.get('category') == 'cat_insta' and v.get('subcat') == 'fol':
+                if v.get('category') == 'cat_insta' and (v.get('subcat') == 'fol' or 'fol' in k or 'متابع' in v.get('name', '')):
                     if k in added_keys:
                         continue
                     added_keys.add(k)
@@ -1537,71 +1428,9 @@ def query(call):
                             markup.add(types.InlineKeyboardButton(f"{v.get('btn_label', s_name)} ({s_price} ن)", callback_data=k))
 
             markup.add(
-                types.InlineKeyboardButton("⚡ فلاش متابعين انستغرام الأسرع في العالم", callback_data='open_flash_fol'),
-                types.InlineKeyboardButton("🐉 دراجون متابعين انستا تحديث جديد", callback_data='open_dragon_fol'),
                 types.InlineKeyboardButton("🔙 رجوع", callback_data=back_target)
             )
             update_menu_safely(bot, chat_id, message_id, 'insta_fol_sub_menu', markup)
-
-        elif data == 'open_flash_fol':
-            is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
-            markup = types.InlineKeyboardMarkup(row_width=1)
-            added_keys = set()
-            for k in ['flash_fol_1k', 'flash_fol_2k', 'flash_fol_5k']:
-                if k in SERVICES and k not in added_keys:
-                    added_keys.add(k)
-                    s_data = SERVICES[k]
-                    if is_adm_maint:
-                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
-                        markup.add(types.InlineKeyboardButton(f"{s_data['name']} - {st}", callback_data=f"toggle_maint_{k}"))
-                    else:
-                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
-                            btn_text = f"{s_data.get('btn_label', s_data['name'])} ({s_data.get('price', 0)} ن)"
-                            markup.add(types.InlineKeyboardButton(btn_text, callback_data=k))
-            if not is_adm_maint:
-                markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك", callback_data="custom_flash_fol_1k"))
-            markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='insta_fol_sub_menu'))
-            update_menu_safely(bot, chat_id, message_id, 'open_flash_fol', markup)
-
-        elif data == 'insta_fol_menu':
-            is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
-            markup = types.InlineKeyboardMarkup(row_width=1)
-            added_keys = set()
-            for k in ['buy_fol_1k', 'buy_fol_2k', 'buy_fol_3k', 'buy_fol_4k', 'buy_fol_5k', 'buy_fol_10k']:
-                if k in SERVICES and k not in added_keys:
-                    added_keys.add(k)
-                    s_data = SERVICES[k]
-                    if is_adm_maint:
-                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
-                        markup.add(types.InlineKeyboardButton(f"{s_data['name']} - {st}", callback_data=f"toggle_maint_{k}"))
-                    else:
-                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
-                            btn_text = f"{s_data.get('btn_label', s_data['name'])} ({s_data.get('price', 0)} ن)"
-                            markup.add(types.InlineKeyboardButton(btn_text, callback_data=k))
-            if not is_adm_maint:
-                markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك", callback_data="custom_buy_fol_1k"))
-            markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='insta_fol_sub_menu'))
-            update_menu_safely(bot, chat_id, message_id, 'insta_fol_menu', markup)
-
-        elif data == 'open_dragon_fol':
-            is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
-            markup = types.InlineKeyboardMarkup(row_width=1)
-            added_keys = set()
-            for k in ['dragon_fol_1k', 'dragon_fol_2k', 'dragon_fol_5k']:
-                if k in SERVICES and k not in added_keys:
-                    added_keys.add(k)
-                    s_data = SERVICES[k]
-                    if is_adm_maint:
-                        st = "🛠️ (صيانة)" if is_item_in_maintenance(k) else "🟢 (شغالة)"
-                        markup.add(types.InlineKeyboardButton(f"{s_data['name']} - {st}", callback_data=f"toggle_maint_{k}"))
-                    else:
-                        if not is_item_in_maintenance(k) or chat_id == ADMIN_ID:
-                            btn_text = f"{s_data.get('btn_label', s_data['name'])} ({s_data.get('price', 0)} ن)"
-                            markup.add(types.InlineKeyboardButton(btn_text, callback_data=k))
-            if not is_adm_maint:
-                markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك", callback_data="custom_dragon_fol_1k"))
-            markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='insta_fol_sub_menu'))
-            update_menu_safely(bot, chat_id, message_id, 'open_dragon_fol', markup)
 
         elif data == 'open_like_menu':
             is_adm_maint = (chat_id == ADMIN_ID and 'صيانة' in (call.message.text or ''))
@@ -1624,8 +1453,6 @@ def query(call):
                             btn_text = f"{v.get('btn_label', s_name)} ({s_price} ن)"
                             markup.add(types.InlineKeyboardButton(btn_text, callback_data=k))
 
-            if not is_adm_maint:
-                markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك", callback_data="custom_buy_like_1k"))
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='cat_insta'))
             update_menu_safely(bot, chat_id, message_id, 'open_like_menu', markup)
 
@@ -1650,8 +1477,6 @@ def query(call):
                             btn_text = f"{v.get('btn_label', s_name)} ({s_price} ن)"
                             markup.add(types.InlineKeyboardButton(btn_text, callback_data=k))
 
-            if not is_adm_maint:
-                markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك", callback_data="custom_buy_view_1k"))
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='cat_insta'))
             update_menu_safely(bot, chat_id, message_id, 'open_view_menu', markup)
 
@@ -1676,8 +1501,6 @@ def query(call):
                             btn_text = f"{v.get('btn_label', s_name)} ({s_price} ن)"
                             markup.add(types.InlineKeyboardButton(btn_text, callback_data=k))
 
-            if not is_adm_maint:
-                markup.add(types.InlineKeyboardButton("✍️ اختيار العدد بنفسك", callback_data="custom_buy_share_1k"))
             markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='cat_insta'))
             update_menu_safely(bot, chat_id, message_id, 'open_share_menu', markup)
 
@@ -1877,15 +1700,6 @@ def query(call):
         elif data == 'adm_edit_descriptions' and chat_id == ADMIN_ID:
             markup = types.InlineKeyboardMarkup(row_width=1)
             desc_options = [
-                ('tg_opt_fixed', 'تليجرام ثابت'),
-                ('tg_opt_20d', 'تليجرام 20 يوم'),
-                ('tg_opt_vip_30d', 'تليجرام VIP 30 يوم'),
-                ('tg_opt_bot_start', 'ستارت بوت'),
-                ('tg_opt_no_drop', 'تليجرام بدون نزول'),
-                ('tg_opt_boost', 'تعزيز قنوات Boost'),
-                ('open_flash_fol', 'انستا فلاش'),
-                ('insta_fol_menu', 'انستا 90 يوم'),
-                ('open_dragon_fol', 'انستا دراجون'),
                 ('open_like_menu', 'انستا لايكات'),
                 ('open_view_menu', 'انستا مشاهدات'),
                 ('pubg_menu', 'شدات ببجي'),
@@ -2336,28 +2150,6 @@ def query(call):
             )
             bot.edit_message_text("🛠️ **اختر القسم الرئيسي:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
 
-        elif data.startswith('maint_group_opt_') and chat_id == ADMIN_ID:
-            opt_type = data.replace('maint_group_opt_', '')
-            keys_map = {
-                'tg_opt_fixed': ['tg_sub_fixed_1k', 'tg_sub_fixed_2k', 'tg_sub_fixed_5k'],
-                'tg_opt_20d': ['tg_sub_20d_1k', 'tg_sub_20d_2k', 'tg_sub_20d_5k'],
-                'tg_opt_vip_30d': ['tg_vip_30d_1k', 'tg_vip_30d_2k', 'tg_vip_30d_5k'],
-                'tg_opt_bot_start': ['tg_bot_start_1k', 'tg_bot_start_2k', 'tg_bot_start_5k'],
-                'tg_opt_no_drop': ['tg_vip_no_drop_1k', 'tg_vip_no_drop_2k', 'tg_vip_no_drop_5k'],
-                'tg_opt_boost': ['tg_boost_1d_1k', 'tg_boost_1d_2k', 'tg_boost_1d_5k']
-            }
-            if opt_type in keys_map:
-                group_keys = keys_map[opt_type]
-                all_maint = all(is_item_in_maintenance(k) for k in group_keys)
-                target_state = not all_maint
-                for r_key in group_keys:
-                    if target_state:
-                        maintenance_items.add(r_key)
-                    else:
-                        if r_key in maintenance_items:
-                            maintenance_items.remove(r_key)
-                bot.send_message(chat_id, f"✅ **تم تغيير حالة صيانة الفئة بنجاح!**")
-
         elif data.startswith('toggle_maint_') and chat_id == ADMIN_ID:
             item_key = data.replace('toggle_maint_', '')
             is_now_maint = toggle_item_maintenance(item_key)
@@ -2375,9 +2167,8 @@ def query(call):
 
             srv_key = data
 
-            tiers_data = srv_data_item.get('tiers')
-            if not tiers_data and 'tiers' in srv_data_item:
-                tiers_data = srv_data_item['tiers']
+            # جلب التيرات بجميع الطرق لضمان ظهورها وعدم التحويل لليدوي مطلقاً
+            tiers_data = srv_data_item.get('tiers') or srv_data_item.get('custom_tiers')
 
             if tiers_data and isinstance(tiers_data, list) and len(tiers_data) > 0:
                 markup = types.InlineKeyboardMarkup(row_width=2)
@@ -2459,7 +2250,8 @@ def query(call):
                 target_qty = int(qty_str)
                 if srv_key in SERVICES:
                     s_data = SERVICES[srv_key]
-                    selected_tier = next((t for t in s_data.get('tiers', []) if t['qty'] == target_qty), None)
+                    tiers_list = s_data.get('tiers') or s_data.get('custom_tiers', [])
+                    selected_tier = next((t for t in tiers_list if t['qty'] == target_qty), None)
                     if selected_tier:
                         final_price = get_service_price(chat_id, selected_tier['price'])
                         api_qty_to_send = selected_tier['api_qty']
@@ -2472,29 +2264,6 @@ def query(call):
                         bot.register_next_step_handler(call.message, prepare_order_summary_with_api_qty, final_price, s_data['service_id'], api_qty_to_send, f"{s_data['name']} ({target_qty})")
             except Exception as e:
                 print(f"Error in buytier handler: {e}")
-
-        elif data.startswith('buyqty_'):
-            parts = data.split('_')
-            if len(parts) >= 3:
-                srv_key = parts[1]
-                qty = int(parts[2])
-                
-                if srv_key in SERVICES:
-                    s_data = SERVICES[srv_key]
-                    price_per_1k = s_data.get('price', 1.0)
-                    total_price = round((price_per_1k / 1000.0) * qty, 2)
-                    final_price = get_service_price(chat_id, total_price)
-                    
-                    text_req = f"🔗 {s_data.get('msg', 'أرسل الرابط المطلوب:')}\n*(الكمية: {qty} - السعر: {final_price} نقطة)*"
-                    markup_back = types.InlineKeyboardMarkup()
-                    markup_back.add(types.InlineKeyboardButton("🔙 رجوع", callback_data=srv_key))
-                    
-                    bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
-                    
-                    if s_data['service_id'] == 0:
-                        bot.register_next_step_handler(call.message, prepare_order_summary_direct, final_price, f"{s_data['name']} ({qty})")
-                    else:
-                        bot.register_next_step_handler(call.message, prepare_order_summary, final_price, s_data['service_id'], qty, f"{s_data['name']} ({qty})")
 
         elif data == 'confirm_order_now':
             order_data = pending_orders_cache.get(chat_id)
