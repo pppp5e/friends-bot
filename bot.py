@@ -866,29 +866,50 @@ def query(call):
 
             elif data == 'adm_edit_descriptions':
                 markup = types.InlineKeyboardMarkup(row_width=1)
-                desc_options = [
-                    ('open_like_menu', 'انستا لايكات'),
-                    ('open_view_menu', 'انستا مشاهدات'),
-                    ('open_share_menu', 'انستا مشاركات'),
-                    ('insta_fol_sub_menu', 'انستا متابعين'),
-                    ('cat_telegram', 'خدمات التليجرام'),
-                    ('pubg_menu', 'شدات ببجي'),
-                    ('ff_menu', 'جواهر فري فاير')
-                ]
-                for key, name in desc_options:
-                    markup.add(types.InlineKeyboardButton(name, callback_data=f"editdesc_{key}"))
+                for cat_k, cat_name in CATEGORIES.items():
+                    markup.add(types.InlineKeyboardButton(f"📁 {cat_name}", callback_data=f"editdesc_cat_{cat_k}"))
                 markup.add(types.InlineKeyboardButton("🔙 رجوع", callback_data='adm_manage_services'))
-                bot.edit_message_text("📝 **اختر القسم الذي تريد تعديل وصفه:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
+                bot.edit_message_text("📝 **اختر القسم لعرض خدماته وتعديل وصف خدمة محددة:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
                 return
 
-            elif data.startswith('editdesc_'):
-                menu_key = data.replace('editdesc_', '')
-                admin_states[chat_id] = {'action': 'edit_desc', 'menu_key': menu_key}
-                text_req = "📝 **أرسل الآن الوصف الجديد الذي تريده أن يظهر للمستخدم في هذا القسم:**"
+            elif data.startswith('editdesc_cat_'):
+                cat_key = data.replace('editdesc_cat_', '')
+                cat_name = CATEGORIES.get(cat_key, "القسم")
+                markup = types.InlineKeyboardMarkup(row_width=1)
+                
+                cat_services = {k: v for k, v in SERVICES.items() if v.get('category') == cat_key}
+                
+                if not cat_services:
+                    bot.answer_callback_query(call.id, "❌ لا توجد خدمات مضافة في هذا القسم حالياً!", show_alert=True)
+                    return
+
+                for s_key, s_data in cat_services.items():
+                    s_name = s_data.get('name', 'خدمة')
+                    markup.add(types.InlineKeyboardButton(f"📦 {s_name}", callback_data=f"editsrvdesc_{s_key}"))
+
+                markup.add(types.InlineKeyboardButton("🔙 رجوع للأقسام", callback_data='adm_edit_descriptions'))
+                bot.edit_message_text(f"📁 **{cat_name}**\nاختر الخدمة التي تريد تعديل وصفها:", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
+                return
+
+            elif data.startswith('editsrvdesc_'):
+                service_key = data.replace('editsrvdesc_', '')
+                s_info = SERVICES.get(service_key)
+                if not s_info:
+                    bot.answer_callback_query(call.id, "❌ الخدمة غير موجودة!", show_alert=True)
+                    return
+
+                admin_states[chat_id] = {'action': 'edit_service_desc', 'service_key': service_key}
+                current_msg = s_info.get('msg', 'لا يوجد وصف حالياً (سيظهر النص الافتراضي).')
+                text_req = (
+                    f"📝 **تعديل وصف الخدمة:** `{s_info['name']}`\n"
+                    f"━━━━━━━━━━━━━━━━━━━\n\n"
+                    f"📌 الوصف الحالي:\n`{current_msg}`\n\n"
+                    f"✍️ **أرسل الآن الوصف أو الرسالة الجديدة التي ستظهر للمستخدم عند طلب هذه الخدمة:**"
+                )
                 markup_back = types.InlineKeyboardMarkup()
                 markup_back.add(types.InlineKeyboardButton("🔙 إلغاء", callback_data='adm_edit_descriptions'))
                 bot.edit_message_text(text_req, chat_id, message_id, reply_markup=markup_back, parse_mode="Markdown")
-                bot.register_next_step_handler(call.message, process_admin_edit_desc)
+                bot.register_next_step_handler(call.message, process_admin_edit_service_desc)
                 return
 
             elif data == 'adm_add_new_category':
@@ -2102,7 +2123,6 @@ def query(call):
 
             srv_key = data
 
-            # فحص شامل لجلب التيرات بأي مفتاح محتمل
             tiers_data = (
                 srv_data_item.get('tiers') or 
                 srv_data_item.get('custom_tiers') or 
@@ -2126,7 +2146,6 @@ def query(call):
                 except Exception:
                     bot.send_message(chat_id, text_menu, reply_markup=markup, parse_mode="Markdown")
                 return
-
 
             if srv_data_item.get('category') in ['cat_itunes', 'cat_esim'] or srv_data_item.get('service_id') == 0:
                 final_price = get_service_price(chat_id, srv_data_item.get('price', 1.0))
@@ -2261,6 +2280,35 @@ def query(call):
 
     except Exception as e:
         print(f"Callback Error: {e}")
+
+def process_admin_edit_service_desc(message):
+    chat_id = message.chat.id
+    if chat_id != ADMIN_ID: return
+    st = admin_states.get(chat_id)
+    if not st or st.get('action') != 'edit_service_desc':
+        return
+    
+    service_key = st.get('service_key')
+    new_desc = message.text.strip()
+    
+    if service_key in SERVICES:
+        SERVICES[service_key]['msg'] = new_desc
+        
+        if service_key.startswith('custom_srv_'):
+            try:
+                custom_only = {k: v for k, v in SERVICES.items() if k.startswith('custom_srv_')}
+                supabase.table("settings").upsert({
+                    "key": "custom_services_list",
+                    "val_text": json.dumps(custom_only, ensure_ascii=False)
+                }, on_conflict="key").execute()
+            except Exception as e:
+                print(f"Error updating custom service msg in DB: {e}")
+
+        bot.send_message(chat_id, f"✅ **تم تحديث وصف الخدمة بنجاح!**\n\n📝 الوصف الجديد:\n{new_desc}", parse_mode="Markdown")
+    else:
+        bot.send_message(chat_id, "❌ حدث خطأ: لم يتم العثور على الخدمة.")
+        
+    del admin_states[chat_id]
 
 def process_admin_user_search(message):
     chat_id = message.chat.id
