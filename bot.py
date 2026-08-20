@@ -116,6 +116,11 @@ def sync_prices_from_api_logic():
     try:
         payload = {'key': API_KEY, 'action': 'services'}
         response = http_session.post(API_URL, data=payload, timeout=20)
+        
+        # التأكد من أن الاستجابة صالحة وليست خطأ HTML من السيرفر
+        if 'application/json' not in response.headers.get('Content-Type', ''):
+            return False, "رد غير صالح من المزود"
+            
         api_services = response.json()
         
         if isinstance(api_services, list):
@@ -127,14 +132,40 @@ def sync_prices_from_api_logic():
                 
                 for k, v in SERVICES.items():
                     if str(v.get('service_id')) == str(s_id):
-                        v['price'] = new_calculated_price
-                        updated_count += 1
+                        # 1. إذا كانت الخدمة عادية ذات سعر ثابت
+                        if 'price' in v and not v.get('tiers') and not v.get('custom_tiers'):
+                            v['price'] = new_calculated_price
+                            updated_count += 1
+                        
+                        # 2. إذا كانت الخدمة تحتوي على تيرات (Tiers) متعددة
+                        tiers_key = 'tiers' if 'tiers' in v else ('custom_tiers' if 'custom_tiers' in v else None)
+                        if tiers_key and isinstance(v[tiers_key], list):
+                            for tier in v[tiers_key]:
+                                q = tier.get('qty', 1000)
+                                # إعادة حساب سعر التير بناءً على الكمية والسعر الجديد للمزود + هامش الربح
+                                calculated_tier_price = (base_rate + PROFIT_MARGIN_USD) * (q / 1000.0)
+                                tier['price'] = round(calculated_tier_price, 2)
+                            
+                            updated_count += 1
+                            
+                            # حفظ التعديلات في قاعدة البيانات إذا كانت خدمة مخصصة
+                            if k.startswith('custom_srv_'):
+                                try:
+                                    custom_only = {item_k: item_v for item_k, item_v in SERVICES.items() if item_k.startswith('custom_srv_')}
+                                    supabase.table("settings").upsert({
+                                        "key": "custom_services_list",
+                                        "val_text": json.dumps(custom_only, ensure_ascii=False)
+                                    }, on_conflict="key").execute()
+                                except Exception as db_e:
+                                    print(f"Error saving custom tiers to DB during sync: {db_e}")
+
             return True, updated_count
         elif isinstance(api_services, dict) and "error" in api_services:
             return False, api_services["error"]
         return False, "رد غير متوقع من المزود"
     except Exception as e:
         return False, str(e)
+
 
 def validate_service_link(service_category, link):
     link_lower = link.lower()
