@@ -117,7 +117,6 @@ def sync_prices_from_api_logic():
         payload = {'key': API_KEY, 'action': 'services'}
         response = http_session.post(API_URL, data=payload, timeout=20)
         
-        # التأكد من أن الاستجابة صالحة وليست خطأ HTML من السيرفر
         if 'application/json' not in response.headers.get('Content-Type', ''):
             return False, "رد غير صالح من المزود"
             
@@ -132,23 +131,19 @@ def sync_prices_from_api_logic():
                 
                 for k, v in SERVICES.items():
                     if str(v.get('service_id')) == str(s_id):
-                        # 1. إذا كانت الخدمة عادية ذات سعر ثابت
                         if 'price' in v and not v.get('tiers') and not v.get('custom_tiers'):
                             v['price'] = new_calculated_price
                             updated_count += 1
                         
-                        # 2. إذا كانت الخدمة تحتوي على تيرات (Tiers) متعددة
                         tiers_key = 'tiers' if 'tiers' in v else ('custom_tiers' if 'custom_tiers' in v else None)
                         if tiers_key and isinstance(v[tiers_key], list):
                             for tier in v[tiers_key]:
                                 q = tier.get('qty', 1000)
-                                # إعادة حساب سعر التير بناءً على الكمية والسعر الجديد للمزود + هامش الربح
                                 calculated_tier_price = (base_rate + PROFIT_MARGIN_USD) * (q / 1000.0)
                                 tier['price'] = round(calculated_tier_price, 2)
                             
                             updated_count += 1
                             
-                            # حفظ التعديلات في قاعدة البيانات إذا كانت خدمة مخصصة
                             if k.startswith('custom_srv_'):
                                 try:
                                     custom_only = {item_k: item_v for item_k, item_v in SERVICES.items() if item_k.startswith('custom_srv_')}
@@ -166,6 +161,63 @@ def sync_prices_from_api_logic():
     except Exception as e:
         return False, str(e)
 
+# ==========================================
+# دوال الفحص والتنبيه التلقائي بالخلفية
+# ==========================================
+def check_broken_services_logic():
+    try:
+        payload = {'key': API_KEY, 'action': 'services'}
+        response = http_session.post(API_URL, data=payload, timeout=20)
+        
+        if 'application/json' not in response.headers.get('Content-Type', ''):
+            return False, "❌ تعذر الاتصال بالمزود لجلب القائمة."
+            
+        api_services = response.json()
+        if not isinstance(api_services, list):
+            return False, "❌ رد غير صالح من المزود."
+            
+        active_api_ids = {str(srv.get('service')) for srv in api_services}
+        broken_services = []
+        
+        for k, v in SERVICES.items():
+            srv_api_id = v.get('service_id')
+            if srv_api_id is not None and str(srv_api_id) != "0":
+                if str(srv_api_id) not in active_api_ids:
+                    broken_services.append({
+                        'key': k,
+                        'name': v.get('name', 'خدمة بدون اسم'),
+                        'service_id': srv_api_id,
+                        'category': v.get('category', 'غير محدد')
+                    })
+                    
+        return True, broken_services
+    except Exception as e:
+        return False, f"❌ خطأ أثناء فحص الآديات: {str(e)}"
+
+# ثريد الخلفية لمراقبة الخدمات المحذوفة وإرسال تنبيه فوري للإدارة
+def background_broken_services_monitor():
+    while True:
+        try:
+            time.sleep(14400) # يفحص تلقائياً كل 4 ساعات
+            success, result = check_broken_services_logic()
+            if success and result:
+                for item in result:
+                    alert_msg = (
+                        f"🚨 **تنبيه هام (خدمة محذوفة من الموقع)!**\n"
+                        f"━━━━━━━━━━━━━━━━━━━\n\n"
+                        f"❌ تم ملاحظة أن الآيدي الخاص بالخدمة:\n"
+                        f"📦 **{item['name']}**\n"
+                        f"🆔 **API ID:** `{item['service_id']}`\n\n"
+                        f"⚠️ **تم حذفه من الموقع، يرجى مراجعة البوت وحذفها!**"
+                    )
+                    try:
+                        bot.send_message(ADMIN_ID, alert_msg, parse_mode="Markdown")
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f"Background monitor error: {e}")
+
+threading.Thread(target=background_broken_services_monitor, daemon=True).start()
 
 def validate_service_link(service_category, link):
     link_lower = link.lower()
@@ -888,11 +940,37 @@ def query(call):
                 markup.add(
                     types.InlineKeyboardButton("📁 إضافة قسم رئيسي جديد", callback_data='adm_add_new_category'),
                     types.InlineKeyboardButton("➕ إضافة خدمة جديدة", callback_data='adm_add_new_srv_cat'),
+                    types.InlineKeyboardButton("🔍 فحص الآديات المحذوفة من المزود", callback_data='adm_check_broken_services'),
                     types.InlineKeyboardButton("❌ حذف خدمة أو قسم", callback_data='adm_delete_srv_list'),
                     types.InlineKeyboardButton("📝 تعديل نصوص ووصف الأقسام", callback_data='adm_edit_descriptions'),
                     types.InlineKeyboardButton("🔙 رجوع للوحة الإدارة", callback_data='admin_panel')
                 )
                 bot.edit_message_text("📦 **قسم إدارة الأقسام والخدمات بالبوت:**", chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
+                return
+
+            elif data == 'adm_check_broken_services':
+                bot.answer_callback_query(call.id, "⏳ جاري فحص جميع آديات الخدمات مع المزود...", show_alert=False)
+                success, result = check_broken_services_logic()
+                
+                if not success:
+                    bot.send_message(chat_id, result)
+                    return
+                    
+                broken_list = result
+                if not broken_list:
+                    bot.send_message(chat_id, "🟢 **ممتاز! جميع آديات الخدمات المربوطة بالبوت موجودة وشغالة لدى المزود ولم يُحذف أي منها.**", parse_mode="Markdown")
+                    return
+                    
+                report_text = f"🚨 **تم رصد خدمات محذوفة أو غير متطابقة لدى المزود! ({len(broken_list)} خدمات):**\n━━━━━━━━━━━━━━━━━━━\n\n"
+                markup_del = types.InlineKeyboardMarkup(row_width=1)
+                
+                for item in broken_list:
+                    report_text += f"❌ **الخدمة:** {item['name']}\n🆔 **الـ API ID:** `{item['service_id']}`\n\n"
+                    markup_del.add(types.InlineKeyboardButton(f"🗑️ حذف الخدمة: {item['name'][:25]}", callback_data=f"delsrv_{item['key']}"))
+                    
+                markup_del.add(types.InlineKeyboardButton("🔙 رجوع لإدارة الخدمات", callback_data='adm_manage_services'))
+                
+                bot.send_message(chat_id, report_text, reply_markup=markup_del, parse_mode="Markdown")
                 return
 
             elif data == 'adm_edit_descriptions':
@@ -2838,7 +2916,7 @@ def process_gen_card(message):
         supabase.table("vouchers").insert({"code": card_code, "amount": amount}).execute()
         bot_username = bot.get_me().username
         direct_link = f"https://t.me/{bot_username}?start={card_code}"
-        bot.send_message(message.chat.id, f"✅ **تم إنشاء كود الشحن الفردي:**\n💰 القيمة: {amount}\n🔑 الكود: `{card_code}`\n🔗 الرابط المباشر:\n`{direct_link}`", parse_mode="Markdown")
+        bot.send_message(message.chat.id, f"✅ **تم إنشاء كود الشحن الفردي:**\n💰 القيمة: {amount}\n🔑 الكود: `{card_code}`\n🔗 الرابط المباشر:\n`{direct_link}`", parse_Mode="Markdown")
     except Exception:
         bot.send_message(message.chat.id, "⚠️ خطأ في إدخال القيمة.")
 
